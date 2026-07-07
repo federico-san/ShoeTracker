@@ -10,5 +10,5 @@ ShoeTracker/
 │   ├── Shoe.cs              ← Shoe class
 │   └── Run.cs                ← Run class + RunType enum
 └── Services/
-    └── TrackerService.cs     ← business logic and LINQ query
+    └── TrackerService.cs     ← business logic + LINQ query
 ```
