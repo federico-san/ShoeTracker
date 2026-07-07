@@ -1,2 +1,2 @@
 # ShoeTracker
-tracker for my run shoes
+tracker for my running shoes
