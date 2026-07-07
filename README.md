@@ -3,6 +3,7 @@ mileage tracker for my running shoes, and to understand C# basics
 
 Structure is as follows.
 
+'''text
 ShoeTracker/
 ├── ShoeTracker.csproj
 ├── Program.cs              ← interactive menu (entry point)
