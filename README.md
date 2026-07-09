@@ -1,5 +1,5 @@
 # ShoeTracker
-mileage tracker for my running shoes, mainly to understand C# basics
+mileage tracker for my running shoes, made to understand C# basics
 
 Structure is as follows.
 
