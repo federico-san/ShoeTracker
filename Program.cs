@@ -5,9 +5,9 @@ using ShoeTracker.Services;
 var tracker = new TrackerService();
 
 //initial seed with current shoe rotation
-var skyflow = tracker.addShoe("HOKA", "Skyflow", dropMm: 5, lifespan: 700);
+var skyflow = tracker.addShoe("HOKA", "Skyflow", dropMm: 5, lifespan: 600);
 var hyperion3 = tracker.addShoe("Brooks", "Hyperion 3", dropMm: 8, lifespan: 500);
-var glizzymax2 = tracker.addShoe("Brooks", "Glycerin Max 2", dropMm: 6, lifespan: 800);
+var glizzymax2 = tracker.addShoe("Brooks", "Glycerin Max 2", dropMm: 6, lifespan: 700);
 
 //some absolutely real runs to populate the tracker
 tracker.logRun(glizzymax2.Id, 7.29, RunType.Easy, new DateOnly(2026, 07, 08));

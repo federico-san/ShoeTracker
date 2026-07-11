@@ -1,4 +1,4 @@
-namespace ShoeTrackers.Models;
+namespace ShoeTracker.Models;
 
 /// <summary>
 /// Features a pair of running shoes.
