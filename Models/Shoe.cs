@@ -32,5 +32,5 @@ public class Shoe
     public bool ShoeReplace => TotalKm >= Lifespan;
 
     public override string ToString() =>
-        $"{Brand} {Model} (drop {DropMm}mm) - {TotalKm:F1}km / {Lifespan}km";
+        $"{Brand} {Model} (drop {DropMm}mm) - {TotalKm:F2}km / {Lifespan}km";
 }

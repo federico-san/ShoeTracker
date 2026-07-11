@@ -6,10 +6,10 @@ Structure is as follows.
 ```text
 ShoeTracker/
 ├── ShoeTracker.csproj
-├── Program.cs               ← interactive menu (entry point)
+├── Program.cs               < interactive menu (entry point)
 ├── Models/
-│   ├── Shoe.cs              ← Shoe class
-│   └── Run.cs               ← Run class + RunType enum
+│   ├── Shoe.cs              < Shoe class
+│   └── Run.cs               < Run class + RunType enum
 └── Services/
-    └── TrackerService.cs    ← business logic + LINQ query
+    └── TrackerService.cs    < business logic + LINQ query
 ```

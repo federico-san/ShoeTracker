@@ -31,6 +31,6 @@ public class Run
     public override string ToString()
     {
         var durationText = Duration is not null ? $", {Duration:hh\\:mm\\:ss}" : "";
-        return $"{Date:dd/MM/yy} - {Type} - {DistanceKm:F1}km{durationText}";
+        return $"{Date:dd/MM/yyyy} - {Type} - {DistanceKm:F2}km{durationText}";
     }
 }
