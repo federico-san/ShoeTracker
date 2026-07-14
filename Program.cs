@@ -5,17 +5,17 @@ using ShoeTracker.Services;
 var tracker = new TrackerService();
 
 //initial seed with current shoe rotation
-var skyflow = tracker.addShoe("HOKA", "Skyflow", dropMm: 5, lifespan: 600);
-var hyperion3 = tracker.addShoe("Brooks", "Hyperion 3", dropMm: 8, lifespan: 500);
-var glizzymax2 = tracker.addShoe("Brooks", "Glycerin Max 2", dropMm: 6, lifespan: 700);
+var skyflow = tracker.AddShoe("HOKA", "Skyflow", dropMm: 5, lifespan: 600);
+var hyperion3 = tracker.AddShoe("Brooks", "Hyperion 3", dropMm: 8, lifespan: 500);
+var glizzymax2 = tracker.AddShoe("Brooks", "Glycerin Max 2", dropMm: 6, lifespan: 700);
 
 //some absolutely real runs to populate the tracker
-tracker.logRun(glizzymax2.Id, 7.29, RunType.Easy, new DateOnly(2026, 07, 08));
-tracker.logRun(hyperion3.Id, 5.64, RunType.Tempo, new DateOnly(2026, 06, 06));
-tracker.logRun(glizzymax2.Id, 10.6, RunType.LongRun, new DateOnly(2026, 06, 14));
-tracker.logRun(hyperion3.Id, 7.64, RunType.Easy, new DateOnly(2026, 06, 12));
-tracker.logRun(skyflow.Id, 8.12, RunType.Recovery, new DateOnly(2026, 04, 12));
-tracker.logRun(skyflow.Id, 7.47, RunType.Easy, new DateOnly(2026, 04, 09));
+tracker.LogRun(glizzymax2.Id, 7.29, RunType.Easy, new DateOnly(2026, 07, 08));
+tracker.LogRun(hyperion3.Id, 5.64, RunType.Tempo, new DateOnly(2026, 06, 06));
+tracker.LogRun(glizzymax2.Id, 10.6, RunType.LongRun, new DateOnly(2026, 06, 14));
+tracker.LogRun(hyperion3.Id, 7.64, RunType.Easy, new DateOnly(2026, 06, 12));
+tracker.LogRun(skyflow.Id, 8.12, RunType.Recovery, new DateOnly(2026, 04, 12));
+tracker.LogRun(skyflow.Id, 7.47, RunType.Easy, new DateOnly(2026, 04, 09));
 
 bool running = true;
 
@@ -53,7 +53,7 @@ while (running)
         case "0":
             running = false;
             break;
-        case default:
+        default:
             Console.WriteLine("Invalid choice.");
             break;
     }
@@ -116,7 +116,7 @@ static void LogRunInteractive(TrackerService tracker)
     }
 
     Console.Write("Run type (Easy/Recovery/LongRun/Tempo/Intervals/Race}): ");
-    var TypeInput = Console.ReadLine();
+    var typeInput = Console.ReadLine();
     if (!Enum.TryParse<RunType>(typeInput, ignoreCase: true, out var type))
     {
         Console.WriteLine("Wrong type, using Easy instead.");
@@ -171,7 +171,7 @@ static void ShowKmMonth(TrackerService tracker)
 
 static void ShowShoesToRetire(TrackerService tracker)
 {
-    var toReplace = tracker.getShoeReplace();
+    var toReplace = tracker.ShowShoesToRetire();
     Console.WriteLine();
     if (toReplace.Count == 0)
     {

@@ -27,7 +27,7 @@ public class TrackerService
             Model = model,
             DropMm = dropMm,
             PurchaseDate = DateOnly.FromDateTime(DateTime.Now),
-            LifespanKm = lifespanKm
+            LifespanKm = lifespan
         };
         _shoes.Add(shoe);
         return shoe;
@@ -76,12 +76,12 @@ public class TrackerService
     public Dictionary<string, double> GetKmByMonth(Guid shoeId)
     {
         return _runs
-            .Where(r => r.ShoeId = shoeId)
+            .Where(r => r.ShoeId == shoeId)
             .GroupBy(r => $"{r.Date.Year}-{r.Date.Month:D2}")
             .OrderBy(g => g.Key)
             .ToDictionary(g => g.Key, g => g.Sum(r => r.DistanceKm));
     }
 
     public List<Run> GetRunsForShoe(Guid shoeId) =>
-        _runs.Where(r => r.ShoeId = shoeId).OrderByDescending(r => r.Date).ToList();
+        _runs.Where(r => r.ShoeId == shoeId).OrderByDescending(r => r.Date).ToList();
 }
