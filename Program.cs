@@ -29,6 +29,8 @@ while (running)
     Console.WriteLine("4. Km/Month (for each pair)");
     Console.WriteLine("5. Shoes To Retire");
     Console.WriteLine("0. Exit");
+    Console.WriteLine("====================");
+    Console.WriteLine();
     Console.Write("Choose: ");
 
     var choice = Console.ReadLine();
@@ -92,6 +94,7 @@ static void ListShoes(TrackerService tracker)
         var flag = shoe.ShoeReplace ? "!!! NEEDS REPLACEMENT !!!" : "";
         Console.WriteLine($"{i + 1}. {shoe}{flag}");
     }
+    Console.WriteLine();
 }
 
 static void LogRunInteractive(TrackerService tracker)
@@ -125,6 +128,7 @@ static void LogRunInteractive(TrackerService tracker)
 
     var run = tracker.LogRun(shoe.Id, distance, type);
     Console.WriteLine(run is not null ? $"Registered run: {run}" : "Error while registering.");
+    Console.WriteLine();
 }
 
 static void AddShoeInteractive(TrackerService tracker)
@@ -144,6 +148,7 @@ static void AddShoeInteractive(TrackerService tracker)
 
     var shoe = tracker.AddShoe(brand, model, drop, lifespan);
     Console.WriteLine($"Added: {shoe}");
+    Console.WriteLine();
 }
 
 static void ShowKmMonth(TrackerService tracker)
@@ -167,6 +172,7 @@ static void ShowKmMonth(TrackerService tracker)
     {
         Console.WriteLine($"  {month}: {km:F2} km");
     }
+    Console.WriteLine();
 }
 
 static void ShowShoesToRetire(TrackerService tracker)
@@ -176,6 +182,7 @@ static void ShowShoesToRetire(TrackerService tracker)
     if (toReplace.Count == 0)
     {
         Console.WriteLine("No shoes have reached their max mileage yet.");
+        Console.WriteLine();
         return;
     }
 
@@ -183,4 +190,5 @@ static void ShowShoesToRetire(TrackerService tracker)
     {
         Console.WriteLine($"!!! WARNING {shoe} !!!");
     }
+    Console.WriteLine();
 }
