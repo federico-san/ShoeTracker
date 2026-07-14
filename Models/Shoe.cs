@@ -21,16 +21,16 @@ public class Shoe
     public DateOnly PurchaseDate { get; set; }
 
     //after how many kms the pair should be replaced (usually 600-800km)
-    public int Lifespan { get; set; } = 650;
+    public int LifespanKm { get; set; } = 650;
 
     // "init" vs "set": TotalKm is incremental (every run increases its value), needs a normal setter
     public double TotalKm { get; set; } = 0;
 
     //computed property: gets recalculated every time you read it. Similar to @property in python.
-    public double RemainingKm => Math.Max(0, Lifespan - TotalKm);
+    public double RemainingKm => Math.Max(0, LifespanKm - TotalKm);
 
-    public bool ShoeReplace => TotalKm >= Lifespan;
+    public bool ShoeReplace => TotalKm >= LifespanKm;
 
     public override string ToString() =>
-        $"{Brand} {Model} (drop {DropMm}mm) - {TotalKm:F2}km / {Lifespan}km";
+        $"{Brand} {Model} (drop {DropMm}mm) - {TotalKm:F2}km / {LifespanKm}km";
 }
