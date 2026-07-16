@@ -90,7 +90,7 @@ while (running)
 /// double.TryParse(string, out double) alone depends on the CurrentCulture:
 /// on a machine with invariant/en-US culture, the comma is read as
 /// a thousands separator, so "7.29" would become 729 instead of 7.29.
-/// we want to normalize the comma to a dot and force InvariantCulture, so the
+/// need to normalize the comma to a dot and force InvariantCulture, so the
 /// behavior is identical wherever the app runs.
 ///</summary>
 static bool TryParseDistance(string? input, out double distance)
