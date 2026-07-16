@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using ShoeTracker.Models;
 
 namespace ShoeTracker.Services;
@@ -15,6 +17,15 @@ public class TrackerService
     //to check types at runtime.
     private readonly List<Shoe> _shoes = new();
     private readonly List<Run> _runs = new();
+
+    //Shared options between Save and Load: readable indentation + enum saved as text
+    //instead of number thanks to JsonStringEnumConverter.
+    //The objective is to leave the file readable even if is opened with a text editor.
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        WriteIndented = true,
+        Converters = { new JsonStringEnumConverter() }
+    };
 
     public IReadOnlyList<Shoe> Shoes => _shoes;
     public IReadOnlyList<Run> Runs => _runs;
@@ -84,4 +95,43 @@ public class TrackerService
 
     public List<Run> GetRunsForShoe(Guid shoeId) =>
         _runs.Where(r => r.ShoeId == shoeId).OrderByDescending(r => r.Date).ToList();
+
+    ///<summary>
+    /// Saves shoes and runs in a readable JSON file.
+    ///</summary>
+    public void SaveToFile(string path)
+    {
+        var data = new TrackerData { Shoes = _shoes.ToList(), Runs = _runs.ToList() };
+        var json = JsonSerializer.Serialize(data, JsonOptions);
+        File.WriteAllText(path, json);
+    }
+
+    ///<summary>
+    /// Loads runs and running shoes, if exists. Prints true if data
+    /// has actually loaded, false if file is corrupted or not exists
+    /// (in that case, Program.cs has to pupulate the file with initial data)
+    ///</summary>
+    
+    public bool LoadFromFile(string path)
+    {
+        if (!File.Exists(path)) return false;
+
+        try
+        {
+            var json = File.ReadAllText(path);
+            var data = JsonSerializer.Deserialize<TrackerData>(json, JsonOptions);
+            if (data is null) return false;
+
+            _shoes.Clear();
+            _shoes.AddRange(data.Shoes);
+            _runs.Clear();
+            _runs.AddRange(data.Runs);
+            return true;
+        }
+        catch (JsonException ex)
+        {
+            Console.WriteLine($"Savefile seems corrupted ({ex.Message}). Starting again with empty data.");
+            return false;
+        }
+    }
 }

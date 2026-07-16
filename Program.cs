@@ -4,18 +4,36 @@ using ShoeTracker.Services;
 
 var tracker = new TrackerService();
 
-//initial seed with current shoe rotation
-var skyflow = tracker.AddShoe("HOKA", "Skyflow", dropMm: 5, lifespan: 600);
-var hyperion3 = tracker.AddShoe("Brooks", "Hyperion 3", dropMm: 8, lifespan: 500);
-var glizzymax2 = tracker.AddShoe("Brooks", "Glycerin Max 2", dropMm: 6, lifespan: 700);
+//The file lives near the executable (AppContext.BaseDirectory), instead
+//on the folder where the command gets launched. The path is always the same
+//whether doing dotnet run from the main directory or launch the exe from bin/Debug/net8.0
+var dataFilePath = Path.Combine(AppContext.BaseDirectory, "shoetracker-data.json");
 
-//some absolutely real runs to populate the tracker
-tracker.LogRun(glizzymax2.Id, 7.29, RunType.Easy, new DateOnly(2026, 07, 08));
-tracker.LogRun(hyperion3.Id, 5.64, RunType.Tempo, new DateOnly(2026, 06, 06));
-tracker.LogRun(glizzymax2.Id, 10.6, RunType.LongRun, new DateOnly(2026, 06, 14));
-tracker.LogRun(hyperion3.Id, 7.64, RunType.Easy, new DateOnly(2026, 06, 12));
-tracker.LogRun(skyflow.Id, 8.12, RunType.Recovery, new DateOnly(2026, 04, 12));
-tracker.LogRun(skyflow.Id, 7.47, RunType.Easy, new DateOnly(2026, 04, 09));
+bool loaded = tracker.LoadFromFile(dataFilePath);
+
+if (!loaded)
+{
+    //Initially there's nothing saved. Populate it with the initial rotation.
+    //In this way the file exists from the beginning.
+    //initial seed with current shoe rotation
+    var hyperion3 = tracker.AddShoe("Brooks", "Hyperion 3", dropMm: 8, lifespan: 500);
+    var glizzymax2 = tracker.AddShoe("Brooks", "Glycerin Max 2", dropMm: 6, lifespan: 700);
+    var skyflow = tracker.AddShoe("HOKA", "Skyflow", dropMm: 5, lifespan: 600);
+
+    //some absolutely real runs to populate the tracker
+    tracker.LogRun(glizzymax2.Id, 7.29, RunType.Easy, new DateOnly(2026, 07, 08));
+    tracker.LogRun(hyperion3.Id, 5.64, RunType.Tempo, new DateOnly(2026, 06, 06));
+    tracker.LogRun(glizzymax2.Id, 10.6, RunType.LongRun, new DateOnly(2026, 06, 14));
+    tracker.LogRun(hyperion3.Id, 7.64, RunType.Easy, new DateOnly(2026, 06, 12));
+    tracker.LogRun(skyflow.Id, 8.12, RunType.Recovery, new DateOnly(2026, 04, 12));
+    tracker.LogRun(skyflow.Id, 7.47, RunType.Easy, new DateOnly(2026, 04, 09));
+
+    tracker.SaveToFile(dataFilePath);
+}
+else
+{
+    Console.WriteLine($"Loaded data from {dataFilePath}");
+}
 
 bool running = true;
 
@@ -42,9 +60,11 @@ while (running)
             break;
         case "2":
             LogRunInteractive(tracker);
+            tracker.SaveToFile(dataFilePath);
             break;
         case "3":
             AddShoeInteractive(tracker);
+            tracker.SaveToFile(dataFilePath);
             break;
         case "4":
             ShowKmMonth(tracker);
@@ -53,6 +73,7 @@ while (running)
             ShowShoesToRetire(tracker);
             break;
         case "0":
+            tracker.SaveToFile(dataFilePath);
             running = false;
             break;
         default:
