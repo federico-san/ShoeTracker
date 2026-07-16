@@ -9,7 +9,8 @@ ShoeTracker/
 ├── Program.cs               < interactive menu (entry point)
 ├── Models/
 │   ├── Shoe.cs              < Shoe class
-│   └── Run.cs               < Run class + RunType enum
+│   ├── Run.cs               < Run class + RunType enum
+│   └── TrackerData.cs       < Container to save shoes + runs in a JSON file
 └── Services/
     └── TrackerService.cs    < business logic + LINQ query
 ```
