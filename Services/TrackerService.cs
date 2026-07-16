@@ -35,7 +35,7 @@ public class TrackerService
 
     public Run? LogRun(Guid shoeId, double distanceKm, RunType type, DateOnly? date = null, TimeSpan? duration = null)
     {
-        //FirstOrDefault (LINQ) prints null if does not find anything, instead of throwing an exception
+        //FirstOrDefault (LINQ) prints null if it finds nothing, instead of throwing an exception
         var shoe = _shoes.FirstOrDefault(s => s.Id == shoeId);
         if (shoe is null) return null;
 
@@ -44,6 +44,7 @@ public class TrackerService
             ShoeId = shoeId,
             DistanceKm = distanceKm,
             Type = type,
+            Date = date ?? DateOnly.FromDateTime(DateTime.Now),
             Duration = duration
         };
         _runs.Add(run);
