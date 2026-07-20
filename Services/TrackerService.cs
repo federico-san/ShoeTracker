@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using ShoeTracker.Models;
@@ -96,6 +97,45 @@ public class TrackerService
 
     public List<Run> GetRunsForShoe(Guid shoeId) =>
         _runs.Where(r => r.ShoeId == shoeId).OrderByDescending(r => r.Date).ToList();
+
+    ///<summary>
+    /// Edits an existing run. Every parameter is nullable: if passed
+    /// (non-null) is applied, else the field remains the same.
+    /// returns false if the run does not exist.
+    ///</summary> 
+    public bool EditRun(Guid runId, Guid? newShoeId = null, double? newDistanceKm = null, RunType? newType = null, DateOnly? newDate = null)
+    {
+        var run = _runs.FirstOrDefault(r => r.Id == runId);
+        if (run is null) return false;
+
+        //Need to remember the original shoes BEFORE editing the run,
+        //either the reference to the shoe to recalculate gets lost
+        var oldShoeId = run.ShoeId;
+
+        if (newShoeId is not null) run.ShoeId = newShoeId.Value;
+        if (newDistanceKm is not null) run.DistanceKm = newDistanceKm.Value;
+        if (newType is not null) run.Type = newType.Value;
+        if (newDate is not null) run.Date = newDate.Value;
+
+        //TotalKm is a cache updated manually (see LogRun)
+        //not a value calculated in real-time like GetKmForShoe. To edit a run
+        //can "disalign" it. Need to recalculate from 0 adding the real runs,
+        //both for the old shoe (if changed) and the new.
+        RecalculateShoeTotal(oldShoeId);
+        if (run.ShoeId != oldShoeId)
+        {
+            RecalculateShoeTotal(run.ShoeId);
+        }
+
+        return true;
+    }
+
+    private void RecalculateShoeTotal(Guid shoeId)
+    {
+        var shoe = _shoes.FirstOrDefault(s => s.Id == shoeId);
+        if (shoe is null) return;
+        shoe.TotalKm = GetKmForShoe(shoeId);
+    }
 
     ///<summary>
     /// Saves shoes and runs in a readable JSON file.

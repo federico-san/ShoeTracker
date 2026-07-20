@@ -46,6 +46,7 @@ while (running)
     Console.WriteLine("3. Add New Shoes");
     Console.WriteLine("4. Km/Month (for each pair)");
     Console.WriteLine("5. Shoes To Retire");
+    Console.WriteLine("6. Edit Run");
     Console.WriteLine("0. Exit");
     Console.WriteLine("====================");
     Console.WriteLine();
@@ -72,6 +73,10 @@ while (running)
         case "5":
             ShowShoesToRetire(tracker);
             break;
+        case "6":
+            EditRunInteractive(tracker);
+            tracker.SaveToFile(dataFilePath);
+            break;
         case "0":
             tracker.SaveToFile(dataFilePath);
             running = false;
@@ -97,6 +102,118 @@ static bool TryParseDistance(string? input, out double distance)
 {
     var normalized = (input ?? string.Empty).Trim().Replace(',','.');
     return double.TryParse(normalized, NumberStyles.Float, CultureInfo.InvariantCulture, out distance);
+}
+
+///Explicit date parsing in the dd/mm/yyyy format, independent from system culture similar to above.
+static bool TryParseDate(string? input, out DateOnly date)
+{
+    return DateOnly.TryParseExact(
+        (input ?? string.Empty).Trim(),
+        "dd/MM/yyyy",
+        CultureInfo.InvariantCulture,
+        DateTimeStyles.None,
+        out date);
+}
+
+static void EditRunInteractive(TrackerService tracker)
+{
+    if (tracker.Runs.Count == 0)
+    {
+        Console.WriteLine("No run registered.");
+        return;
+    }
+
+    //Summary of ALL runs (unfiltered by shoe) with progressive index and
+    //shoe name for easy spotting
+    Console.WriteLine();
+    Console.WriteLine("=== Registered Runs ===");
+    for (int i=0; i < tracker.Runs.Count; i++)
+    {
+        var r = tracker.Runs[i];
+        var shoe = tracker.Shoes.FirstOrDefault(s => s.Id == r.ShoeId);
+        var shoeLabel = shoe is not null ? $"{shoe.Brand} {shoe.Model}" : "Unknown Shoe.";
+        Console.WriteLine($"{i + 1}. {r} ({shoeLabel})");
+    }
+
+    Console.Write("Run number to edit: ");
+    if (!int.TryParse(Console.ReadLine(), out int runIndex) || runIndex < 1 || runIndex > tracker.Runs.Count)
+    {
+        Console.WriteLine("Invalid number.");
+        return;
+    }
+
+    var runToEdit = tracker.Runs[runIndex - 1];
+    Console.WriteLine();
+    Console.WriteLine("Leave empty field (only ENTER) to avoid changes.");
+
+    // === Shoe ===
+    Guid? newShoeId = null;
+    ListShoes(tracker);
+    Console.Write("New shoe number: ");
+    var shoeInput = Console.ReadLine();
+    if (!string.IsNullOrWhiteSpace(shoeInput))
+    {
+        if (int.TryParse(shoeInput, out int shoeIndex) && shoeIndex >= 1 && shoeIndex <= tracker.Shoes.Count)
+        {
+            newShoeId = tracker.Shoes[shoeIndex - 1].Id;
+        }
+        else
+        {
+            Console.WriteLine("Unvalid shoe number, keeping the current one.");
+        }
+    }
+
+    // === Distance ===
+    double? newDistance = null;
+    ListShoes(tracker);
+    Console.Write($"New distance (km, current {runToEdit.DistanceKm:F2}): ");
+    var distanceInput = Console.ReadLine();
+    if (!string.IsNullOrWhiteSpace(distanceInput))
+    {
+        if (TryParseDistance(distanceInput, out double parsedDistance))
+        {
+            newDistance = parsedDistance;
+        }
+        else
+        {
+            Console.WriteLine("Unvalid distance, keeping the current one.");
+        }
+    }
+
+    // === Type ===
+    RunType? newType = null;
+    Console.Write($"New Type (current {runToEdit.Type}): ");
+    var editTypeInput = Console.ReadLine();
+    if (!string.IsNullOrWhiteSpace(editTypeInput))
+    {
+        if (Enum.TryParse<RunType>(editTypeInput, ignoreCase: true, out var parsedType))
+        {
+            newType = parsedType;
+        }
+        else
+        {
+            Console.WriteLine("Invalid Type, keeping the current one.");
+        }
+    }
+
+    // === Date ===
+    DateOnly? newDate = null;
+    Console.Write($"new date (dd/mm/yyyy, current {runToEdit.Date:dd/MM/yyyy}): ");
+    var editDateinput = Console.ReadLine();
+    if (!string.IsNullOrWhiteSpace(editDateinput))
+    {
+        if (TryParseDate(editDateinput, out var parsedDate))
+        {
+            newDate = parsedDate;
+        }
+        else
+        {
+            Console.WriteLine("Unvalid date, keeping the current one.");
+        }
+    }
+
+    bool updated = tracker.EditRun(runToEdit.Id, newShoeId, newDistance, newType, newDate);
+    Console.WriteLine(updated ? "Updated run." : "Error while updating.");
 }
 
 static void ListShoes(TrackerService tracker)
@@ -139,6 +256,19 @@ static void LogRunInteractive(TrackerService tracker)
         return;
     }
 
+    Console.Write("Run date (dd/mm/yyyy, ENTER for today): ");
+    var dateInput = Console.ReadLine();
+    DateOnly runDate;
+    if (string.IsNullOrWhiteSpace(dateInput))
+    {
+        runDate = DateOnly.FromDateTime(DateTime.Now);
+    }
+    else if (!TryParseDate(dateInput, out runDate))
+    {
+        Console.WriteLine("Invalid date (use dd/mm/yyyy), using today.");
+        runDate = DateOnly.FromDateTime(DateTime.Now);
+    }
+
     Console.Write("Run type (Easy/Recovery/LongRun/Tempo/Intervals/Race}): ");
     var typeInput = Console.ReadLine();
     if (!Enum.TryParse<RunType>(typeInput, ignoreCase: true, out var type))
@@ -147,7 +277,7 @@ static void LogRunInteractive(TrackerService tracker)
         type = RunType.Easy;
     }
 
-    var run = tracker.LogRun(shoe.Id, distance, type);
+    var run = tracker.LogRun(shoe.Id, distance, type, runDate);
     Console.WriteLine(run is not null ? $"Registered run: {run}" : "Error while registering.");
     Console.WriteLine();
 }
