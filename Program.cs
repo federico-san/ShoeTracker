@@ -41,12 +41,14 @@ while (running)
 {
     //basic console interface
     Console.WriteLine("=== Shoe Tracker ===");
+    Console.WriteLine();
     Console.WriteLine("1. Shoes List");
-    Console.WriteLine("2. Register Run");
-    Console.WriteLine("3. Add New Shoes");
-    Console.WriteLine("4. Km/Month (for each pair)");
-    Console.WriteLine("5. Shoes To Retire");
-    Console.WriteLine("6. Edit Run");
+    Console.WriteLine("2. Add New Shoes");
+    Console.WriteLine("3. Km/Month (for each pair)");
+    Console.WriteLine("4. Shoes To Retire");
+    Console.WriteLine("5. Runs List");
+    Console.WriteLine("6. Register Run");
+    Console.WriteLine("7. Edit Run");
     Console.WriteLine("0. Exit");
     Console.WriteLine("====================");
     Console.WriteLine();
@@ -60,20 +62,23 @@ while (running)
             ListShoes(tracker);
             break;
         case "2":
-            LogRunInteractive(tracker);
-            tracker.SaveToFile(dataFilePath);
-            break;
-        case "3":
             AddShoeInteractive(tracker);
             tracker.SaveToFile(dataFilePath);
             break;
-        case "4":
+        case "3":
             ShowKmMonth(tracker);
             break;
-        case "5":
+        case "4":
             ShowShoesToRetire(tracker);
             break;
+        case "5":
+            ListRuns(tracker);
+            break;
         case "6":
+            LogRunInteractive(tracker);
+            tracker.SaveToFile(dataFilePath);
+            break;
+        case "7":
             EditRunInteractive(tracker);
             tracker.SaveToFile(dataFilePath);
             break;
@@ -115,6 +120,157 @@ static bool TryParseDate(string? input, out DateOnly date)
         out date);
 }
 
+static void ListShoes(TrackerService tracker)
+{
+    Console.WriteLine();
+    if (tracker.Shoes.Count == 0)
+    {
+        Console.WriteLine("No shoes registered.");
+        return;
+    }
+
+    //Console.WriteLine with index for numeric lists
+    for (int i=0; i < tracker.Shoes.Count; i++)
+    {
+        var shoe = tracker.Shoes[i];
+        var flag = shoe.ShoeReplace ? "!!! NEEDS REPLACEMENT !!!" : "";
+        Console.WriteLine($"{i + 1}. {shoe}{flag}");
+    }
+    Console.WriteLine();
+}
+
+static void AddShoeInteractive(TrackerService tracker)
+{
+    Console.Write("Brand: ");
+    var brand = Console.ReadLine() ?? "Unknown";
+
+    Console.Write("Model: ");
+    var model = Console.ReadLine() ?? "Unknown";
+
+    Console.Write("Drop (mm): ");
+    int.TryParse(Console.ReadLine(), out int drop);
+
+    Console.Write("Recommended mileage in Km (default 700): ");
+    var lifespanInput = Console.ReadLine();
+    int lifespan = string.IsNullOrWhiteSpace(lifespanInput) ? 700 : int.Parse(lifespanInput);
+
+    var shoe = tracker.AddShoe(brand, model, drop, lifespan);
+    Console.WriteLine($"Added: {shoe}");
+    Console.WriteLine();
+}
+
+static void ShowKmMonth(TrackerService tracker)
+{
+    ListShoes(tracker);
+    if (tracker.Shoes.Count == 0) return;
+
+    Console.Write("Shoes number: ");
+    if (!int.TryParse(Console.ReadLine(), out int index) || index < 1 || index > tracker.Shoes.Count)
+    {
+        Console.WriteLine("Invalid number.");
+        return;
+    }
+
+    var shoe = tracker.Shoes[index - 1];
+    var byMonth = tracker.GetKmByMonth(shoe.Id);
+
+    Console.WriteLine();
+    Console.WriteLine($"Km per month -- {shoe.Brand} {shoe.Model}");
+    foreach (var (month, km) in byMonth)
+    {
+        Console.WriteLine($"  {month}: {km:F2} km");
+    }
+    Console.WriteLine();
+}
+
+static void ShowShoesToRetire(TrackerService tracker)
+{
+    var toReplace = tracker.ShowShoesToRetire();
+    Console.WriteLine();
+    if (toReplace.Count == 0)
+    {
+        Console.WriteLine("No shoes have reached their max mileage yet.");
+        Console.WriteLine();
+        return;
+    }
+
+    foreach (var shoe in toReplace)
+    {
+        Console.WriteLine($"!!! WARNING {shoe} !!!");
+    }
+    Console.WriteLine();
+}
+
+static void ListRuns(TrackerService tracker)
+{
+    if (tracker.Runs.Count == 0)
+    {
+        Console.WriteLine("No run registered.");
+        return;
+    }
+
+    //same sorting of EditRun
+    var sortedRuns = tracker.Runs.OrderByDescending(r => r.Date).ToList();
+
+    Console.WriteLine();
+    Console.WriteLine("=== Registered Runs ===");
+    foreach (var r in sortedRuns)
+    {
+        var shoe = tracker.Shoes.FirstOrDefault(s => s.Id == r.ShoeId);
+        var shoeLabel = shoe is not null ? $"{shoe.Brand} {shoe.Model}": "unknown shoe";
+        Console.WriteLine($"{r} ({shoeLabel})");
+    }
+
+    Console.WriteLine();
+}
+
+static void LogRunInteractive(TrackerService tracker)
+{
+    ListShoes(tracker);
+    if (tracker.Shoes.Count == 0) return;
+
+    Console.Write("Shoes number: ");
+    if (!int.TryParse(Console.ReadLine(), out int index) || index < 1 || index > tracker.Shoes.Count)
+    {
+        Console.Write("invalid number.");
+        return;
+    }
+
+    var shoe = tracker.Shoes[index - 1];
+
+    Console.Write("Distance (km, e.g. 8.14 or 8,14): ");
+    if (!TryParseDistance(Console.ReadLine(), out double distance))
+    {
+        Console.WriteLine("Invalid distance.");
+        return;
+    }
+
+    Console.Write("Run date (dd/mm/yyyy, ENTER for today): ");
+    var dateInput = Console.ReadLine();
+    DateOnly runDate;
+    if (string.IsNullOrWhiteSpace(dateInput))
+    {
+        runDate = DateOnly.FromDateTime(DateTime.Now);
+    }
+    else if (!TryParseDate(dateInput, out runDate))
+    {
+        Console.WriteLine("Invalid date (use dd/mm/yyyy), using today.");
+        runDate = DateOnly.FromDateTime(DateTime.Now);
+    }
+
+    Console.Write("Run type (Easy/Recovery/LongRun/Tempo/Intervals/Race}): ");
+    var typeInput = Console.ReadLine();
+    if (!Enum.TryParse<RunType>(typeInput, ignoreCase: true, out var type))
+    {
+        Console.WriteLine("Wrong type, using Easy instead.");
+        type = RunType.Easy;
+    }
+
+    var run = tracker.LogRun(shoe.Id, distance, type, runDate);
+    Console.WriteLine(run is not null ? $"Registered run: {run}" : "Error while registering.");
+    Console.WriteLine();
+}
+
 static void EditRunInteractive(TrackerService tracker)
 {
     if (tracker.Runs.Count == 0)
@@ -123,26 +279,31 @@ static void EditRunInteractive(TrackerService tracker)
         return;
     }
 
+    //Order runs by date (newest on top)
+    //use this list to resolve index chosen by the user as well
+    //otherwise they wouldn't match
+    var sortedRuns = tracker.Runs.OrderByDescending(r => r.Date).ToList();
+
     //Summary of ALL runs (unfiltered by shoe) with progressive index and
     //shoe name for easy spotting
     Console.WriteLine();
     Console.WriteLine("=== Registered Runs ===");
     for (int i=0; i < tracker.Runs.Count; i++)
     {
-        var r = tracker.Runs[i];
+        var r = sortedRuns[i];
         var shoe = tracker.Shoes.FirstOrDefault(s => s.Id == r.ShoeId);
         var shoeLabel = shoe is not null ? $"{shoe.Brand} {shoe.Model}" : "Unknown Shoe.";
         Console.WriteLine($"{i + 1}. {r} ({shoeLabel})");
     }
 
     Console.Write("Run number to edit: ");
-    if (!int.TryParse(Console.ReadLine(), out int runIndex) || runIndex < 1 || runIndex > tracker.Runs.Count)
+    if (!int.TryParse(Console.ReadLine(), out int runIndex) || runIndex < 1 || runIndex > sortedRuns.Count)
     {
         Console.WriteLine("Invalid number.");
         return;
     }
 
-    var runToEdit = tracker.Runs[runIndex - 1];
+    var runToEdit = sortedRuns[runIndex - 1];
     Console.WriteLine();
     Console.WriteLine("Leave empty field (only ENTER) to avoid changes.");
 
@@ -214,132 +375,4 @@ static void EditRunInteractive(TrackerService tracker)
 
     bool updated = tracker.EditRun(runToEdit.Id, newShoeId, newDistance, newType, newDate);
     Console.WriteLine(updated ? "Updated run." : "Error while updating.");
-}
-
-static void ListShoes(TrackerService tracker)
-{
-    Console.WriteLine();
-    if (tracker.Shoes.Count == 0)
-    {
-        Console.WriteLine("No shoes registered.");
-        return;
-    }
-
-    //Console.WriteLine with index for numeric lists
-    for (int i=0; i < tracker.Shoes.Count; i++)
-    {
-        var shoe = tracker.Shoes[i];
-        var flag = shoe.ShoeReplace ? "!!! NEEDS REPLACEMENT !!!" : "";
-        Console.WriteLine($"{i + 1}. {shoe}{flag}");
-    }
-    Console.WriteLine();
-}
-
-static void LogRunInteractive(TrackerService tracker)
-{
-    ListShoes(tracker);
-    if (tracker.Shoes.Count == 0) return;
-
-    Console.Write("Shoes number: ");
-    if (!int.TryParse(Console.ReadLine(), out int index) || index < 1 || index > tracker.Shoes.Count)
-    {
-        Console.Write("invalid number.");
-        return;
-    }
-
-    var shoe = tracker.Shoes[index - 1];
-
-    Console.Write("Distance (km, e.g. 8.14 or 8,14): ");
-    if (!TryParseDistance(Console.ReadLine(), out double distance))
-    {
-        Console.WriteLine("Invalid distance.");
-        return;
-    }
-
-    Console.Write("Run date (dd/mm/yyyy, ENTER for today): ");
-    var dateInput = Console.ReadLine();
-    DateOnly runDate;
-    if (string.IsNullOrWhiteSpace(dateInput))
-    {
-        runDate = DateOnly.FromDateTime(DateTime.Now);
-    }
-    else if (!TryParseDate(dateInput, out runDate))
-    {
-        Console.WriteLine("Invalid date (use dd/mm/yyyy), using today.");
-        runDate = DateOnly.FromDateTime(DateTime.Now);
-    }
-
-    Console.Write("Run type (Easy/Recovery/LongRun/Tempo/Intervals/Race}): ");
-    var typeInput = Console.ReadLine();
-    if (!Enum.TryParse<RunType>(typeInput, ignoreCase: true, out var type))
-    {
-        Console.WriteLine("Wrong type, using Easy instead.");
-        type = RunType.Easy;
-    }
-
-    var run = tracker.LogRun(shoe.Id, distance, type, runDate);
-    Console.WriteLine(run is not null ? $"Registered run: {run}" : "Error while registering.");
-    Console.WriteLine();
-}
-
-static void AddShoeInteractive(TrackerService tracker)
-{
-    Console.Write("Brand: ");
-    var brand = Console.ReadLine() ?? "Unknown";
-
-    Console.Write("Model: ");
-    var model = Console.ReadLine() ?? "Unknown";
-
-    Console.Write("Drop (mm): ");
-    int.TryParse(Console.ReadLine(), out int drop);
-
-    Console.Write("Recommended mileage in Km (default 700): ");
-    var lifespanInput = Console.ReadLine();
-    int lifespan = string.IsNullOrWhiteSpace(lifespanInput) ? 700 : int.Parse(lifespanInput);
-
-    var shoe = tracker.AddShoe(brand, model, drop, lifespan);
-    Console.WriteLine($"Added: {shoe}");
-    Console.WriteLine();
-}
-
-static void ShowKmMonth(TrackerService tracker)
-{
-    ListShoes(tracker);
-    if (tracker.Shoes.Count == 0) return;
-
-    Console.Write("Shoes number: ");
-    if (!int.TryParse(Console.ReadLine(), out int index) || index < 1 || index > tracker.Shoes.Count)
-    {
-        Console.WriteLine("Invalid number.");
-        return;
-    }
-
-    var shoe = tracker.Shoes[index - 1];
-    var byMonth = tracker.GetKmByMonth(shoe.Id);
-
-    Console.WriteLine();
-    Console.WriteLine($"Km per month -- {shoe.Brand} {shoe.Model}");
-    foreach (var (month, km) in byMonth)
-    {
-        Console.WriteLine($"  {month}: {km:F2} km");
-    }
-    Console.WriteLine();
-}
-
-static void ShowShoesToRetire(TrackerService tracker)
-{
-    var toReplace = tracker.ShowShoesToRetire();
-    Console.WriteLine();
-    if (toReplace.Count == 0)
-    {
-        Console.WriteLine("No shoes have reached their max mileage yet.");
-        Console.WriteLine();
-        return;
-    }
-
-    foreach (var shoe in toReplace)
-    {
-        Console.WriteLine($"!!! WARNING {shoe} !!!");
-    }
-    Console.WriteLine();
 }
