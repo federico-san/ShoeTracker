@@ -1,7 +1,7 @@
 namespace ShoeTracker.Models;
 
 ///<summary>
-/// Container used only for JSON deserialize. Groups shoes and runs
+/// Container used only for JSON (de)serialization. Groups shoes and runs
 /// in a single file, instead of creating two separate ones.
 /// No logic, only data. 
 /// </summary>
