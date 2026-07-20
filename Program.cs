@@ -50,6 +50,7 @@ while (running)
     Console.WriteLine("6. Register Run");
     Console.WriteLine("7. Edit Run");
     Console.WriteLine("0. Exit");
+    Console.WriteLine();
     Console.WriteLine("====================");
     Console.WriteLine();
     Console.Write("Choose: ");
