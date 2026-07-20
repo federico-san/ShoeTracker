@@ -40,6 +40,7 @@ bool running = true;
 while (running)
 {
     //basic console interface
+    Console.WriteLine();
     Console.WriteLine("=== Shoe Tracker ===");
     Console.WriteLine();
     Console.WriteLine("1. Shoes List");
