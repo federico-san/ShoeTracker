@@ -2,25 +2,26 @@ using System.Globalization;
 using ShoeTracker.Models;
 using ShoeTracker.Services;
 
+// entry-point (top-level statements - C# 9+)
 var tracker = new TrackerService();
 
 //The file lives near the executable (AppContext.BaseDirectory), instead
 //on the folder where the command gets launched. The path is always the same
-//whether doing dotnet run from the main directory or launch the exe from bin/Debug/net8.0
+//whether doing "dotnet run" from the main directory or launch the exe from bin/Debug/net8.0
 var dataFilePath = Path.Combine(AppContext.BaseDirectory, "shoetracker-data.json");
 
 bool loaded = tracker.LoadFromFile(dataFilePath);
 
 if (!loaded)
 {
-    //Initially there's nothing saved. Populate it with the initial rotation.
+    //Initially there's nothing saved. Seeding with the initial rotation.
     //In this way the file exists from the beginning.
     //initial seed with current shoe rotation
     var hyperion3 = tracker.AddShoe("Brooks", "Hyperion 3", dropMm: 8, lifespan: 500);
     var glizzymax2 = tracker.AddShoe("Brooks", "Glycerin Max 2", dropMm: 6, lifespan: 700);
     var skyflow = tracker.AddShoe("HOKA", "Skyflow", dropMm: 5, lifespan: 600);
 
-    //some absolutely real runs to populate the tracker
+    //some absolutely real runs
     tracker.LogRun(glizzymax2.Id, 7.29, RunType.Easy, new DateOnly(2026, 07, 08));
     tracker.LogRun(hyperion3.Id, 5.64, RunType.Tempo, new DateOnly(2026, 06, 06));
     tracker.LogRun(glizzymax2.Id, 10.6, RunType.LongRun, new DateOnly(2026, 06, 14));
@@ -39,7 +40,7 @@ bool running = true;
 
 while (running)
 {
-    //basic console interface
+    //main loop with basic console interface (CLI)
     Console.WriteLine();
     Console.WriteLine("=== Shoe Tracker ===");
     Console.WriteLine();
@@ -94,8 +95,7 @@ while (running)
     }
 }
 
-//--- local functions: C# useful feature to keep Program.cs readable without
-//creating different classes for each action ---
+//--- LOCAL FUNCTIONS: C# way to allow incapsulate UI logic directly into Program.cs ---
 
 ///<summary>
 /// Culture-robust KM parsing. 
@@ -112,11 +112,13 @@ static bool TryParseDistance(string? input, out double distance)
 }
 
 ///Explicit date parsing in the dd/mm/yyyy format, independent from system culture similar to above.
+///Flexible on some format details.
 static bool TryParseDate(string? input, out DateOnly date)
 {
+    string[] formats = { "d/M/yyyy", "d/M/yy" };
     return DateOnly.TryParseExact(
         (input ?? string.Empty).Trim(),
-        "dd/MM/yyyy",
+        formats,
         CultureInfo.InvariantCulture,
         DateTimeStyles.None,
         out date);
@@ -216,6 +218,7 @@ static void ListRuns(TrackerService tracker)
 
     Console.WriteLine();
     Console.WriteLine("=== Registered Runs ===");
+    Console.WriteLine();
     foreach (var r in sortedRuns)
     {
         var shoe = tracker.Shoes.FirstOrDefault(s => s.Id == r.ShoeId);
@@ -247,7 +250,7 @@ static void LogRunInteractive(TrackerService tracker)
         return;
     }
 
-    Console.Write("Run date (dd/mm/yyyy, ENTER for today): ");
+    Console.Write("Run date (e.g. 27/06/2026 or 27/6/26, ENTER for today): ");
     var dateInput = Console.ReadLine();
     DateOnly runDate;
     if (string.IsNullOrWhiteSpace(dateInput))
@@ -361,7 +364,7 @@ static void EditRunInteractive(TrackerService tracker)
 
     // === Date ===
     DateOnly? newDate = null;
-    Console.Write($"new date (dd/mm/yyyy, current {runToEdit.Date:dd/MM/yyyy}): ");
+    Console.Write($"new date (e.g. 26/07/2026 or 26/7/26, current {runToEdit.Date:dd/MM/yyyy}): ");
     var editDateinput = Console.ReadLine();
     if (!string.IsNullOrWhiteSpace(editDateinput))
     {

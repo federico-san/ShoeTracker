@@ -3,7 +3,6 @@ namespace ShoeTracker.Models;
 /// <summary>
 /// Features a pair of running shoes.
 /// In C# data types must be declared explicitly.
-/// "required" (C# 11+) is used to ensure that a property or field must be initialized when an object is created.
 /// </summary>
 
 public class Shoe
@@ -27,6 +26,7 @@ public class Shoe
     public double TotalKm { get; set; } = 0;
 
     //computed property: gets recalculated every time you read it. Similar to @property in python.
+    //calculates the remaining km on-the-fly granting they're never below 0
     public double RemainingKm => Math.Max(0, LifespanKm - TotalKm);
 
     public bool ShoeReplace => TotalKm >= LifespanKm;

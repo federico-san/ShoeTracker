@@ -6,7 +6,7 @@ using ShoeTracker.Models;
 namespace ShoeTracker.Services;
 
 ///<summary>
-/// Business logic to manage runs and shoes.
+/// Business logic to manage runs and shoes. Handles CRUD operations and data persistence on a JSON file.
 /// keeping this logic separate from Program.cs (which controls only the user interaction)
 /// is a basic SoC pattern found in basically ALL enterprise projects.
 /// </summary>
@@ -14,20 +14,21 @@ namespace ShoeTracker.Services;
 public class TrackerService
 {
     //in Pyhton would be used a list; here List<T> is generics
-    //meaning, the list knows at compile-time that contains only Shoe objects, with no need
-    //to check types at runtime.
+    //meaning, the list knows at compile-time that contains only Shoe objects, with no need to check types at runtime.
+    //readonly > the fields' content cannot be reassigned.
     private readonly List<Shoe> _shoes = new();
     private readonly List<Run> _runs = new();
 
     //Shared options between Save and Load: readable indentation + enum saved as text
     //instead of number thanks to JsonStringEnumConverter.
     //The objective is to leave the file readable even if is opened with a text editor.
-    private static readonly JsonSerializerOptions JsonOptions = new()
+    private static readonly JsonSerializerOptions JsonOptions = new() //"static" > instantiated only 1 time
     {
         WriteIndented = true,
-        Converters = { new JsonStringEnumConverter() }
+        Converters = { new JsonStringEnumConverter() } //saves Enums as strings instead of numbers
     };
 
+    //the collections are read-only to preserve encapsulation
     public IReadOnlyList<Shoe> Shoes => _shoes;
     public IReadOnlyList<Run> Runs => _runs;
     
@@ -38,16 +39,19 @@ public class TrackerService
             Brand = brand,
             Model = model,
             DropMm = dropMm,
-            PurchaseDate = DateOnly.FromDateTime(DateTime.Now),
+            PurchaseDate = DateOnly.FromDateTime(DateTime.Now), //shoe gets added with current date
             LifespanKm = lifespan
         };
         _shoes.Add(shoe);
         return shoe;
     }
 
+    ///<summary>
+    ///saves a new run linked to an existing shoe. Returns null if the shoe is not find inside the list
+    ///</summary>
     public Run? LogRun(Guid shoeId, double distanceKm, RunType type, DateOnly? date = null, TimeSpan? duration = null)
     {
-        //FirstOrDefault (LINQ) prints null if it finds nothing, instead of throwing an exception
+        //LINQ FirstOrDefault: search the first element with required features, else returns null
         var shoe = _shoes.FirstOrDefault(s => s.Id == shoeId);
         if (shoe is null) return null;
 
@@ -56,7 +60,7 @@ public class TrackerService
             ShoeId = shoeId,
             DistanceKm = distanceKm,
             Type = type,
-            Date = date ?? DateOnly.FromDateTime(DateTime.Now),
+            Date = date ?? DateOnly.FromDateTime(DateTime.Now), //"??" > null-coalescing operator
             Duration = duration
         };
         _runs.Add(run);
@@ -68,10 +72,12 @@ public class TrackerService
     ///<summary>
     ///LINQ: Where filters, then Sum sums (duh). Similar to filter + reduce in JS
     /// or list comprehension + sum() in Python.
+    /// Calculates total kms of a shoe using LINQ.
     /// </summary>
     public double GetKmForShoe(Guid shoeId) =>
         _runs.Where(r => r.ShoeId == shoeId).Sum(r => r.DistanceKm);
 
+    //calculates kms of one shoe in the last N days
     public double GetKmLastDays(Guid shoeId, int days)
     {
         var cutoff = DateOnly.FromDateTime(DateTime.Now.AddDays(-days));
@@ -90,11 +96,12 @@ public class TrackerService
     {
         return _runs
             .Where(r => r.ShoeId == shoeId)
-            .GroupBy(r => $"{r.Date.Year}-{r.Date.Month:D2}")
-            .OrderBy(g => g.Key)
-            .ToDictionary(g => g.Key, g => g.Sum(r => r.DistanceKm));
+            .GroupBy(r => $"{r.Date.Year}-{r.Date.Month:D2}") //LINQ grouping
+            .OrderBy(g => g.Key)                                //order by key (year-month)
+            .ToDictionary(g => g.Key, g => g.Sum(r => r.DistanceKm)); //sends to a dictionary
     }
 
+    //returns the history of the runs for une shoe; sorted by most recent
     public List<Run> GetRunsForShoe(Guid shoeId) =>
         _runs.Where(r => r.ShoeId == shoeId).OrderByDescending(r => r.Date).ToList();
 
@@ -119,7 +126,7 @@ public class TrackerService
 
         //TotalKm is a cache updated manually (see LogRun)
         //not a value calculated in real-time like GetKmForShoe. To edit a run
-        //can "disalign" it. Need to recalculate from 0 adding the real runs,
+        //can misalign it. Need to recalculate from 0 adding the real runs,
         //both for the old shoe (if changed) and the new.
         RecalculateShoeTotal(oldShoeId);
         if (run.ShoeId != oldShoeId)
@@ -130,6 +137,7 @@ public class TrackerService
         return true;
     }
 
+    //private method to recalculate total kms of one shoe from the source data of the runs
     private void RecalculateShoeTotal(Guid shoeId)
     {
         var shoe = _shoes.FirstOrDefault(s => s.Id == shoeId);
@@ -150,9 +158,9 @@ public class TrackerService
     ///<summary>
     /// Loads runs and running shoes, if exists. Prints true if data
     /// has actually loaded, false if file is corrupted or not exists
-    /// (in that case, Program.cs has to pupulate the file with initial data)
+    /// (in that case, Program.cs has to populate the file with initial data)
+    /// try-catch to handle corrupted data.
     ///</summary>
-    
     public bool LoadFromFile(string path)
     {
         if (!File.Exists(path)) return false;
