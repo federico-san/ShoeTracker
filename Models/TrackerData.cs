@@ -1,6 +1,6 @@
 namespace ShoeTracker.Models;
 
-///<summary>
+/// <summary>
 /// DTO (Data Transfer Object). Container used only for JSON (de)serialization.
 /// Groups shoes and runs in a single file, instead of creating two separate ones.
 /// No logic, only data. 

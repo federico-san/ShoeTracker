@@ -1,4 +1,3 @@
-using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using ShoeTracker.Models;
@@ -48,13 +47,13 @@ public class TrackerService
         return shoe;
     }
 
-    ///<summary>
-    ///saves a new run linked to an existing shoe. Returns null if the shoe is not find inside the list
-    ///</summary>
+    /// <summary>
+    /// Saves a new run linked to an existing shoe. Returns null if the shoe is not found inside the list
+    /// </summary>
     public Run? LogRun(Guid shoeId, double distanceKm, RunType type, DateOnly? date = null, TimeSpan? duration = null)
     {
         //LINQ (Language Integrated Query): declarative paradigm for manipulating collections.
-        //Lambda expressions (s => s.Id == shoeId) define predicates.
+        //Lambda expressions (s => s.Id == shoeId) define predicates
         var shoe = _shoes.FirstOrDefault(s => s.Id == shoeId);
         if (shoe is null) return null;
 
@@ -101,11 +100,10 @@ public class TrackerService
         return _runs
             .Where(r => r.ShoeId == shoeId)
             .GroupBy(r => $"{r.Date.Year}-{r.Date.Month:D2}") //LINQ grouping
-            .OrderBy(g => g.Key)                                //order by key (year-month)
-            .ToDictionary(g => g.Key, g => g.Sum(r => r.DistanceKm)); //sends to a dictionary
+            .OrderBy(g => g.Key)                              //order by key (year-month)
+            .ToDictionary(g => g.Key, g => g.Sum(r => r.DistanceKm)); //sends to dictionary
     }
 
-    //returns the history of the runs for une shoe; sorted by most recent
     public List<Run> GetRunsForShoe(Guid shoeId) =>
         _runs.Where(r => r.ShoeId == shoeId).OrderByDescending(r => r.Date).ToList();
 
@@ -149,9 +147,7 @@ public class TrackerService
         shoe.TotalKm = GetKmForShoe(shoeId);
     }
 
-    /// <summary>
-    /// Saves shoes and runs in a readable JSON file.
-    /// </summary>
+    //Saves shoes and runs in a readable JSON file.
     public void SaveToFile(string path)
     {
         var data = new TrackerData { Shoes = _shoes.ToList(), Runs = _runs.ToList() };
@@ -160,8 +156,8 @@ public class TrackerService
     }
 
     /// <summary>
-    /// Loads runs and running shoes, if they exist. Returns true if data
-    /// has actually loaded, false if file is corrupted or not exists
+    /// Loads runs and running shoes, if they exist. Returns 'true' if data
+    /// has actually loaded, 'false' if file is corrupted or not exists
     /// (in that case, Program.cs has to populate the file with initial data)
     /// </summary>
     public bool LoadFromFile(string path)

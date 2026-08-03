@@ -23,7 +23,7 @@ public class Shoe
     // Unlike Id, TotalKm has a standard 'set' because its value must change over time, as new runs are recorded
     public double TotalKm { get; set; } = 0;
 
-    //Computed Property: It doesn't allocate memory to store the value; the logic is re-executed every time the property is read. Similar to @property in Python
+    //Computed Property: it doesn't allocate memory to store the value; the logic is re-executed every time the property is read. Similar to @property in Python
     public double RemainingKm => Math.Max(0, LifespanKm - TotalKm);
 
     //Boolean property calculated on-the-fly. Returns 'true' if TotalKm equals or passes the Lifespan

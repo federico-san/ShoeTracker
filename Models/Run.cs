@@ -21,13 +21,13 @@ public enum RunType
 
 public class Run
 {
-    public Guid Id { get; init; } = Guid.NewGuid(); // Guid (Globally unique identifier) > 128-bit integer. 
-                                                    // init > modifier which allows assignment ONLY when the object is created. After that, the property becomes immutable (read-only).
-    public required Guid ShoeId { get; set; } // required > forces anyone instantiating this class to provide a ShoeId value, preventing the creation of orphaned Run objects.
+    public Guid Id { get; init; } = Guid.NewGuid(); // 'Guid' (Globally unique identifier) > 128-bit integer. 
+                                                    // 'init' > modifier which allows assignment ONLY when the object is created. After that, the property becomes immutable (read-only).
+    public required Guid ShoeId { get; set; } // 'required' > forces anyone instantiating this class to provide a ShoeId value, preventing the creation of orphaned Run objects.
     public DateOnly Date { get; set; }
     public double DistanceKm { get; set; }
     public RunType Type { get; set; }
-    public TimeSpan? Duration { get; set; } // "?" > Nullable Value Type. Duration can contain a valid Timespan or a NULL value (Run can have no time registered).
+    public TimeSpan? Duration { get; set; } // '?' > Nullable Value Type. Duration can contain a valid Timespan or a NULL value (Run can have no time registered).
 
     /// <summary>
     /// Polymorphic override inherited from System.Object.
@@ -35,7 +35,7 @@ public class Run
     /// </summary>
     public override string ToString()
     {
-        var durationText = Duration is not null ? $", {Duration:hh\\:mm\\:ss}" : ""; // is not null > Pattern Matching. More safe instead of "!= null".
+        var durationText = Duration is not null ? $", {Duration:hh\\:mm\\:ss}" : ""; // 'is not null' > Pattern Matching. More safe instead of "!= null".
         return $"{Date:dd/MM/yyyy} - {Type} - {DistanceKm:F2}km{durationText}"; // $"..." > String Interpolation. Similar to a Python f-string.
     }
 }
