@@ -5,29 +5,32 @@ using ShoeTracker.Models;
 
 namespace ShoeTracker.Services;
 
-///<summary>
+/// <summary>
 /// Business logic to manage runs and shoes.
 /// keeping this logic separate from Program.cs (which controls only the user interaction)
-/// is a basic SoC pattern found in basically ALL enterprise projects.
+/// is a basic SoC pattern found in basically ALL enterprise projects
 /// </summary>
 
 public class TrackerService
 {
-    //in Pyhton would be used a list; here List<T> is generics
-    //meaning, the list knows at compile-time that contains only Shoe objects, with no need
-    //to check types at runtime.
+    //List<T> is a Generics collection. It guarantees compile-time type safety.
+    //'readonly' protects the list reference (can't do _shoes = new List...), but it does NOT prevent
+    //adding or removing elements from the list itself
     private readonly List<Shoe> _shoes = new();
     private readonly List<Run> _runs = new();
 
     //Shared options between Save and Load: readable indentation + enum saved as text
     //instead of number thanks to JsonStringEnumConverter.
-    //The objective is to leave the file readable even if is opened with a text editor.
+    //The goal is to leave the file readable even if is opened with a text editor
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
         Converters = { new JsonStringEnumConverter() }
     };
 
+    //IReadOnlyList<T> is an interface that exposes only the read methods.
+    //Crucial encapsulation technique: the outside can read the lists,
+    //but only the TrackerService can modify them (via LogRun, AddShoe, etc.)
     public IReadOnlyList<Shoe> Shoes => _shoes;
     public IReadOnlyList<Run> Runs => _runs;
     
@@ -47,7 +50,8 @@ public class TrackerService
 
     public Run? LogRun(Guid shoeId, double distanceKm, RunType type, DateOnly? date = null, TimeSpan? duration = null)
     {
-        //FirstOrDefault (LINQ) prints null if it finds nothing, instead of throwing an exception
+        //LINQ (Language Integrated Query): declarative paradigm for manipulating collections.
+        //Lambda expressions (s => s.Id == shoeId) define predicates.
         var shoe = _shoes.FirstOrDefault(s => s.Id == shoeId);
         if (shoe is null) return null;
 
@@ -56,7 +60,8 @@ public class TrackerService
             ShoeId = shoeId,
             DistanceKm = distanceKm,
             Type = type,
-            Date = date ?? DateOnly.FromDateTime(DateTime.Now),
+            Date = date ?? DateOnly.FromDateTime(DateTime.Now), // '??' > Null-coalescing Operator. If date is null, executes and returns the right side
+                                                                // of the expression (today's date). If date has a value, returns the other one.
             Duration = duration
         };
         _runs.Add(run);
@@ -65,8 +70,8 @@ public class TrackerService
         return run;
     }
 
-    ///<summary>
-    ///LINQ: Where filters, then Sum sums (duh). Similar to filter + reduce in JS
+    /// <summary>
+    /// LINQ: Where filters, then Sum sums. Similar to filter + reduce in JS
     /// or list comprehension + sum() in Python.
     /// </summary>
     public double GetKmForShoe(Guid shoeId) =>
@@ -82,10 +87,10 @@ public class TrackerService
 
     public List<Shoe> ShowShoesToRetire() => _shoes.Where(s => s.ShoeReplace).ToList();
 
-    ///<summary>
+    /// <summary>
     /// GroupBy groups run by month. Same concept of groupby() in Pandas.
     /// In C# it's native.
-    ///</summary>
+    /// </summary>
     public Dictionary<string, double> GetKmByMonth(Guid shoeId)
     {
         return _runs
@@ -98,11 +103,11 @@ public class TrackerService
     public List<Run> GetRunsForShoe(Guid shoeId) =>
         _runs.Where(r => r.ShoeId == shoeId).OrderByDescending(r => r.Date).ToList();
 
-    ///<summary>
-    /// Edits an existing run. Every parameter is nullable: if passed
+    /// <summary>
+    /// Edits an existing run. Every parameter is Nullable: if passed
     /// (non-null) is applied, else the field remains the same.
-    /// returns false if the run does not exist.
-    ///</summary> 
+    /// Returns false if the run does not exist.
+    /// </summary> 
     public bool EditRun(Guid runId, Guid? newShoeId = null, double? newDistanceKm = null, RunType? newType = null, DateOnly? newDate = null)
     {
         var run = _runs.FirstOrDefault(r => r.Id == runId);
@@ -118,8 +123,8 @@ public class TrackerService
         if (newDate is not null) run.Date = newDate.Value;
 
         //TotalKm is a cache updated manually (see LogRun)
-        //not a value calculated in real-time like GetKmForShoe. To edit a run
-        //can "disalign" it. Need to recalculate from 0 adding the real runs,
+        //not a value calculated in real-time like GetKmForShoe. Editing a run
+        //can misalign it. Need to recalculate from 0 adding the real runs,
         //both for the old shoe (if changed) and the new.
         RecalculateShoeTotal(oldShoeId);
         if (run.ShoeId != oldShoeId)
@@ -137,9 +142,9 @@ public class TrackerService
         shoe.TotalKm = GetKmForShoe(shoeId);
     }
 
-    ///<summary>
+    /// <summary>
     /// Saves shoes and runs in a readable JSON file.
-    ///</summary>
+    /// </summary>
     public void SaveToFile(string path)
     {
         var data = new TrackerData { Shoes = _shoes.ToList(), Runs = _runs.ToList() };
@@ -147,12 +152,11 @@ public class TrackerService
         File.WriteAllText(path, json);
     }
 
-    ///<summary>
-    /// Loads runs and running shoes, if exists. Prints true if data
+    /// <summary>
+    /// Loads runs and running shoes, if they exist. Returns true if data
     /// has actually loaded, false if file is corrupted or not exists
-    /// (in that case, Program.cs has to pupulate the file with initial data)
-    ///</summary>
-    
+    /// (in that case, Program.cs has to populate the file with initial data)
+    /// </summary>
     public bool LoadFromFile(string path)
     {
         if (!File.Exists(path)) return false;

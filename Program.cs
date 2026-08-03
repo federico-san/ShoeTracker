@@ -2,20 +2,26 @@ using System.Globalization;
 using ShoeTracker.Models;
 using ShoeTracker.Services;
 
+/// <summary>
+/// TOP-LEVEL STATEMENTS
+/// Unlike classic C# which requires a Program class and a 'static void Main()' method,
+/// the compiler implicitly places all this code into a global entry point.
+/// Great for scripts and CLIs.
+/// </summary>
+
 var tracker = new TrackerService();
 
-//The file lives near the executable (AppContext.BaseDirectory), instead
-//on the folder where the command gets launched. The path is always the same
-//whether doing dotnet run from the main directory or launch the exe from bin/Debug/net8.0
+/// <summary>
+/// AppContext.BaseDirectory ensures the file path is always relative to the binary executable and not the current working directory.
+/// In other words, the path is always the same whether doing 'dotnet run' from the main directory or launch the exe from bin/Debug/net8.0
+/// </summary>
 var dataFilePath = Path.Combine(AppContext.BaseDirectory, "shoetracker-data.json");
 
 bool loaded = tracker.LoadFromFile(dataFilePath);
 
 if (!loaded)
 {
-    //Initially there's nothing saved. Populate it with the initial rotation.
-    //In this way the file exists from the beginning.
-    //initial seed with current shoe rotation
+    //initial seed with current shoe rotation to avoid an empty application state
     var hyperion3 = tracker.AddShoe("Brooks", "Hyperion 3", dropMm: 8, lifespan: 500);
     var glizzymax2 = tracker.AddShoe("Brooks", "Glycerin Max 2", dropMm: 6, lifespan: 700);
     var skyflow = tracker.AddShoe("HOKA", "Skyflow", dropMm: 5, lifespan: 600);
@@ -39,7 +45,8 @@ bool running = true;
 
 while (running)
 {
-    //basic console interface
+    //main loop of the basic console interface
+    //keeps going until 'running' becomes false
     Console.WriteLine();
     Console.WriteLine("=== Shoe Tracker ===");
     Console.WriteLine();
@@ -86,7 +93,7 @@ while (running)
             break;
         case "0":
             tracker.SaveToFile(dataFilePath);
-            running = false;
+            running = false; //terminates the loop
             break;
         default:
             Console.WriteLine("Invalid choice.");
@@ -94,24 +101,23 @@ while (running)
     }
 }
 
-//--- local functions: C# useful feature to keep Program.cs readable without
-//creating different classes for each action ---
+// LOCAL FUNCTIONS
+//These functions are only visible within Program.cs / Main method.
+//They allow to split a very long file into reusable logical blocks.
 
-///<summary>
-/// Culture-robust KM parsing. 
-/// double.TryParse(string, out double) alone depends on the CurrentCulture:
-/// on a machine with invariant/en-US culture, the comma is read as
-/// a thousands separator, so "7.29" would become 729 instead of 7.29.
-/// need to normalize the comma to a dot and force InvariantCulture, so the
-/// behavior is identical wherever the app runs.
-///</summary>
+/// <summary>
+/// Culture-robust KM parsing.
+/// Use of 'out' parameters. C# does not natively support Python-style return tuples (return a, b) without specific syntax, so the TryParse methods
+/// return a boolean (success/failure) and "populate" the 'out distance' variable.
+/// CultureInfo.InvariantCulture normalizes the input ensuring that floats are treated the same regardless of the operating system wherever the app is running on.
+/// </summary>
 static bool TryParseDistance(string? input, out double distance)
 {
     var normalized = (input ?? string.Empty).Trim().Replace(',','.');
     return double.TryParse(normalized, NumberStyles.Float, CultureInfo.InvariantCulture, out distance);
 }
 
-///Explicit date parsing in the dd/mm/yyyy format, independent from system culture similar to above.
+//Explicit date parsing in the dd/mm/yyyy format, independent from system culture similar to above.
 static bool TryParseDate(string? input, out DateOnly date)
 {
     return DateOnly.TryParseExact(
@@ -135,6 +141,7 @@ static void ListShoes(TrackerService tracker)
     for (int i=0; i < tracker.Shoes.Count; i++)
     {
         var shoe = tracker.Shoes[i];
+        //Ternary Operator: if Shoereplace == True assigns the string, else leave empty.
         var flag = shoe.ShoeReplace ? "!!! NEEDS REPLACEMENT !!!" : "";
         Console.WriteLine($"{i + 1}. {shoe}{flag}");
     }
@@ -150,11 +157,13 @@ static void AddShoeInteractive(TrackerService tracker)
     var model = Console.ReadLine() ?? "Unknown";
 
     Console.Write("Drop (mm): ");
+    //int.TryParse does not crash the application if the user enters text instead of numbers.
+    //For text, 'drop' defaults to 0.
     int.TryParse(Console.ReadLine(), out int drop);
 
     Console.Write("Recommended mileage in Km (default 700): ");
     var lifespanInput = Console.ReadLine();
-    int lifespan = string.IsNullOrWhiteSpace(lifespanInput) ? 700 : int.Parse(lifespanInput);
+    int lifespan = string.IsNullOrWhiteSpace(lifespanInput) ? 700 : int.Parse(lifespanInput); //IsNullOrWhiteSpace method checks for null, empty string, or a string consisting only of spaces
 
     var shoe = tracker.AddShoe(brand, model, drop, lifespan);
     Console.WriteLine($"Added: {shoe}");
@@ -262,6 +271,9 @@ static void LogRunInteractive(TrackerService tracker)
 
     Console.Write("Run type (Easy/Recovery/LongRun/Tempo/Intervals/Race}): ");
     var typeInput = Console.ReadLine();
+
+    //Enum.TryParse attempts to convert the string into Enum.
+    //'ignoreCase: true' allows the user to type "easy", "EASY", or "Easy"
     if (!Enum.TryParse<RunType>(typeInput, ignoreCase: true, out var type))
     {
         Console.WriteLine("Wrong type, using Easy instead.");

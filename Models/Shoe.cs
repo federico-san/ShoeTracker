@@ -3,13 +3,10 @@ namespace ShoeTracker.Models;
 /// <summary>
 /// Features a pair of running shoes.
 /// In C# data types must be declared explicitly.
-/// "required" (C# 11+) is used to ensure that a property or field must be initialized when an object is created.
 /// </summary>
 
 public class Shoe
 {
-    //Guid is a unique 128-bit identifier, convenient for not having to
-    //worry about generating incremental IDs by hand.
     public Guid Id { get; init; } = Guid.NewGuid();
 
     public required string Brand { get; set; }
@@ -23,12 +20,13 @@ public class Shoe
     //after how many kms the pair should be replaced (usually 600-800km)
     public int LifespanKm { get; set; } = 650;
 
-    // "init" vs "set": TotalKm is incremental (every run increases its value), needs a normal setter
+    // Unlike Id, TotalKm has a standard 'set' because its value must change over time, as new runs are recorded
     public double TotalKm { get; set; } = 0;
 
-    //computed property: gets recalculated every time you read it. Similar to @property in python.
+    //Computed Property: It doesn't allocate memory to store the value; the logic is re-executed every time the property is read. Similar to @property in Python
     public double RemainingKm => Math.Max(0, LifespanKm - TotalKm);
 
+    //Boolean property calculated on-the-fly. Returns 'true' if TotalKm equals or passes the Lifespan
     public bool ShoeReplace => TotalKm >= LifespanKm;
 
     public override string ToString() =>
