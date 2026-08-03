@@ -9,13 +9,6 @@ using ShoeTracker.Services;
 /// Great for scripts and CLIs.
 /// </summary>
 
-/// <summary>
-/// TOP-LEVEL STATEMENTS
-/// Unlike classic C# which requires a Program class and a 'static void Main()' method,
-/// the compiler implicitly places all this code into a global entry point.
-/// Great for scripts and CLIs.
-/// </summary>
-
 var tracker = new TrackerService();
 
 /// <summary>
