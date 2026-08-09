@@ -1,5 +1,5 @@
 # ShoeTracker
-mileage tracker for my running shoes, made to understand C# basics
+Mileage tracker for my running shoes, made to understand C# basics
 
 Structure is as follows.
 
@@ -14,3 +14,5 @@ ShoeTracker/
 └── Services/
     └── TrackerService.cs    < business logic + LINQ query
 ```
+If there's a slight chance you'll use this repository, the program runs with the `dotnet run` command from CLI.
+This small project will still be updated with new functionalities, as soon as I learn them.
