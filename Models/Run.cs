@@ -27,7 +27,12 @@ public class Run
     public DateOnly Date { get; set; }
     public double DistanceKm { get; set; }
     public RunType Type { get; set; }
-    public TimeSpan? Duration { get; set; } // '?' > Nullable Value Type. Duration can contain a valid Timespan or a NULL value (Run can have no time registered).
+    public TimeSpan? Duration { get; set; } // '?' > Nullable value Type. Duration can contain a valid Timespan or a NULL value (Run can have no time registered).
+
+    //Navigation property: "= null!" tells the compiler:
+    //"I know this property isn't nullable, but I don't set it inside the constructor.
+    //EF Core does that when it materializes the entity with a query that uses .Include(r => r.Shoe)".
+    public Shoe Shoe { get; set; } = null!;
 
     /// <summary>
     /// Polymorphic override inherited from System.Object.
