@@ -8,4 +8,19 @@
         <RootNameSpace>ShoeTracker</RootNameSpace>
     </PropertyGroup>
 
+    <ItemGroup>
+        <!-- SQLite provider - includes UseSqlite() and LINQ to SQL translation -->
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.10" />
+        <!--
+            Only of use during development, to the "dotnet ef" tool to generate the migrations.
+            PrivateAssets/IncludeAssets are the standard boilerplate that dotnet itself generates
+            when adding this package: prevents the dependency from leaking to anyone who might reference
+            this project as a library in the future.
+        -->
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.10">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+    </ItemGroup>
+
 </Project>
