@@ -1,41 +1,28 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using ShoeTracker.Data;
 using ShoeTracker.Models;
 
 namespace ShoeTracker.Services;
 
 /// <summary>
-/// Business logic to manage runs and shoes.
-/// keeping this logic separate from Program.cs (which controls only the user interaction)
-/// is a basic SoC pattern found in basically ALL enterprise projects
+/// Business logic to manage runs and shoes. Now the database gets queried via ShoeTrackerContext instead of two in-memory List<T>
+/// every method has become async, because every operation here touches disk (or network, with a real database) and is therefore I/O-bound
 /// </summary>
-
 public class TrackerService
 {
-    //List<T> is a Generics collection. It guarantees compile-time type safety.
-    //'readonly' protects the list reference (can't do _shoes = new List...), but it does NOT prevent
-    //adding or removing elements from the list itself
-    private readonly List<Shoe> _shoes = new();
-    private readonly List<Run> _runs = new();
-
-    //Shared options between Save and Load: readable indentation + enum saved as text
-    //instead of number thanks to JsonStringEnumConverter.
-    //The goal is to leave the file readable even if is opened with a text editor
-    private static readonly JsonSerializerOptions JsonOptions = new()
+    private readonly ShoeTrackerContext _context;
+    public TrackerService(ShoeTrackerContext context)
     {
-        WriteIndented = true,
-        Converters = { new JsonStringEnumConverter() } //saves Enums as strings instead of numbers
-    };
+        _context = context;
+    }
 
-    //IReadOnlyList<T> is an interface that exposes only the read methods.
-    //Crucial encapsulation technique: the outside can read the lists,
-    //but only the TrackerService can modify them (via LogRun, AddShoe, etc.)
-    public IReadOnlyList<Shoe> Shoes => _shoes;
-    public IReadOnlyList<Run> Runs => _runs;
+    public async Task<bool> HasAnyShoesAsync() =>
+        await _context.Shoes.AnyAsync();
     
-    public Shoe AddShoe(string brand, string model, int dropMm, int lifespan = 700)
+    public async Task<Shoe> AddShoeAsync(string brand, string model, int dropMm, int lifespan = 700)
     {
         var shoe = new Shoe
         {
@@ -45,18 +32,16 @@ public class TrackerService
             PurchaseDate = DateOnly.FromDateTime(DateTime.Now), //shoe gets added with current date
             LifespanKm = lifespan
         };
-        _shoes.Add(shoe);
+        _context.Shoes.Add(shoe);
+        await _context.SaveChangesAsync();
         return shoe;
     }
 
-    /// <summary>
-    /// Saves a new run linked to an existing shoe. Returns null if the shoe is not found inside the list
-    /// </summary>
-    public Run? LogRun(Guid shoeId, double distanceKm, RunType type, DateOnly? date = null, TimeSpan? duration = null)
+    public async Task<Run?> LogRunAsync(Guid shoeId, double distanceKm, RunType type, DateOnly? date = null, TimeSpan? duration = null)
     {
         //LINQ (Language Integrated Query): declarative paradigm for manipulating collections.
-        //Lambda expressions (s => s.Id == shoeId) define predicates
-        var shoe = _shoes.FirstOrDefault(s => s.Id == shoeId);
+        //Lambda expressions (e.g. s => s.Id == shoeId) define predicates
+        var shoe = await _context.Shoes.FirstOrDefaultAsync(s => s.Id == shoeId);
         if (shoe is null) return null;
 
         var run = new Run
@@ -68,55 +53,73 @@ public class TrackerService
                                                                 // of the expression (today's date). If date has a value, returns the other one.
             Duration = duration
         };
-        _runs.Add(run);
-        shoe.TotalKm += distanceKm; //updates shoe mileage
+        _context.Runs.Add(run);
 
+        //"shoe" comes from a tracked query (FirstOrDefaultAsync): EF Core is already watching this instance.
+        //No explicit "Update" is needed, change the property is sufficient; tracking will detect this automatically,
+        //and SaveChangesAsync() will generate the correct UPDATE and the INSERT for the new run, in the same transaction
+        shoe.TotalKm += distanceKm;
+
+        await _context.SaveChangesAsync();
         return run;
     }
 
-    /// <summary>
-    /// LINQ: Where filters, then Sum sums. Similar to filter + reduce in JS
-    /// or list comprehension + sum() in Python.
-    /// Calculates total kms of a shoe using LINQ.
-    /// </summary>
-    public double GetKmForShoe(Guid shoeId) =>
-        _runs.Where(r => r.ShoeId == shoeId).Sum(r => r.DistanceKm);
+    public async Task<List<Shoe>> GetShoesAsync() =>
+        await _context.Shoes.ToListAsync();
+
+    public async Task<List<Run>> GetRunsAsync() =>
+        await _context.Runs.ToListAsync();
+
+    public async Task<double> GetKmForShoeAsync(Guid shoeId) =>
+        await _context.Runs.Where(r => r.ShoeId == shoeId).SumAsync(r => r.DistanceKm);
 
     //calculates kms of one shoe in the last N days
-    public double GetKmLastDays(Guid shoeId, int days)
+    public async Task<double> GetKmLastDaysAsync(Guid shoeId, int days)
     {
         var cutoff = DateOnly.FromDateTime(DateTime.Now.AddDays(-days));
-        return _runs
+        return await _context.Runs
             .Where(r => r.ShoeId == shoeId && r.Date >= cutoff)
-            .Sum(r => r.DistanceKm);
+            .SumAsync(r => r.DistanceKm);
     }
 
-    public List<Shoe> ShowShoesToRetire() => _shoes.Where(s => s.ShoeReplace).ToList();
+    //Note: The filter uses "s.TotalKm >= s.LifespanKm" (mapped properties), NOT "s.ShoeReplace" (the computed [NotMapped] property)
+    //EF Core must translate this expression into an SQL WHERE clause, and can only do so with properties that fit to real columns.
+    //ShoeReplace doesn't have one, so using it inside a Where() against the DbSet would fail at runtime.
+    //Practical example of "not all C# can be translated to SQL".
+    public async Task<List<Shoe>> ShowShoesToRetireAsync() =>
+        await _context.Shoes.Where(s => s.ShoeReplace).ToListAsync();
 
-    /// <summary>
-    /// GroupBy groups run by month. Same concept of groupby() in Pandas.
-    /// In C# it's native.
-    /// </summary>
-    public Dictionary<string, double> GetKmByMonth(Guid shoeId)
+    public async Task<Dictionary<string, double>> GetKmByMonthAsync(Guid shoeId)
     {
-        return _runs
+        //materialize the relevant runs first (ToListAsync executes a
+        //real SQL query with WHERE on ShoeId), THEN group on the C# side with
+        //LINQ to Objects.
+        //The reason is GroupBy with custom key formatting (":D2") is not guaranteed to be
+        //translatable into SQL by all providers.
+        var runs = await _context.Runs
             .Where(r => r.ShoeId == shoeId)
+            .ToListAsync();
+
+        return runs
             .GroupBy(r => $"{r.Date.Year}-{r.Date.Month:D2}") //LINQ grouping
             .OrderBy(g => g.Key)                              //order by key (year-month)
             .ToDictionary(g => g.Key, g => g.Sum(r => r.DistanceKm)); //sends to dictionary
     }
 
-    public List<Run> GetRunsForShoe(Guid shoeId) =>
-        _runs.Where(r => r.ShoeId == shoeId).OrderByDescending(r => r.Date).ToList();
+    public async Task<List<Run>> GetRunsForShoeAsync(Guid shoeId) =>
+        await _context.Runs
+            .Where(r => r.ShoeId == shoeId)
+            .OrderByDescending(r => r.Date)
+            .ToListAsync();
 
     /// <summary>
     /// Edits an existing run. Every parameter is Nullable: if passed
     /// (non-null) is applied, else the field remains the same.
     /// Returns false if the run does not exist.
     /// </summary> 
-    public bool EditRun(Guid runId, Guid? newShoeId = null, double? newDistanceKm = null, RunType? newType = null, DateOnly? newDate = null)
+    public async Task<bool> EditRunAsync(Guid runId, Guid? newShoeId = null, double? newDistanceKm = null, RunType? newType = null, DateOnly? newDate = null)
     {
-        var run = _runs.FirstOrDefault(r => r.Id == runId);
+        var run = await _context.Runs.FirstOrDefaultAsync(r => r.Id == runId);
         if (run is null) return false;
 
         //Need to remember the original shoes BEFORE editing the run,
@@ -128,60 +131,49 @@ public class TrackerService
         if (newType is not null) run.Type = newType.Value;
         if (newDate is not null) run.Date = newDate.Value;
 
-        //TotalKm is a cache updated manually (see LogRun)
-        //not a value calculated in real-time like GetKmForShoe. Editing a run
-        //can misalign it. Need to recalculate from 0 adding the real runs,
-        //both for the old shoe (if changed) and the new.
-        RecalculateShoeTotal(oldShoeId);
+        await RecalculateShoeTotalAsync(oldShoeId);
         if (run.ShoeId != oldShoeId)
         {
-            RecalculateShoeTotal(run.ShoeId);
+            await RecalculateShoeTotalAsync(run.ShoeId);
         }
 
+        await _context.SaveChangesAsync();
         return true;
     }
 
     //private method to recalculate total kms of one shoe from the source data of the runs
-    private void RecalculateShoeTotal(Guid shoeId)
+    private async Task RecalculateShoeTotalAsync(Guid shoeId)
     {
-        var shoe = _shoes.FirstOrDefault(s => s.Id == shoeId);
+        var shoe = await _context.Shoes.FirstOrDefaultAsync(s => s.Id == shoeId);
         if (shoe is null) return;
-        shoe.TotalKm = GetKmForShoe(shoeId);
-    }
 
-    //Saves shoes and runs in a readable JSON file.
-    public void SaveToFile(string path)
-    {
-        var data = new TrackerData { Shoes = _shoes.ToList(), Runs = _runs.ToList() };
-        var json = JsonSerializer.Serialize(data, JsonOptions);
-        File.WriteAllText(path, json);
+        //SumAsync makes a true SUM() database-side, we don't dump all the runs into memory just to sum them together
+        shoe.TotalKm = await _context.Runs
+            .Where(r => r.ShoeId == shoeId)
+            .SumAsync(r => r.DistanceKm);
     }
 
     /// <summary>
-    /// Loads runs and running shoes, if they exist. Returns 'true' if data
-    /// has actually loaded, 'false' if file is corrupted or not exists
-    /// (in that case, Program.cs has to populate the file with initial data)
+    /// One-time migration from the old JSON backup (Level 2) to the SQLite database. Call only when the database is still empty;
+    /// it does not perform any duplicate checks, and is not intended to be rerun multiple times on the same data.
     /// </summary>
-    public bool LoadFromFile(string path)
+    public async Task<int> ImportFromJsonAsync(string jsonPath)
     {
-        if (!File.Exists(path)) return false;
+        if (!File.Exists(jsonPath)) return 0;
 
-        try
+        var options = new JsonSerializerOptions
         {
-            var json = File.ReadAllText(path);
-            var data = JsonSerializer.Deserialize<TrackerData>(json, JsonOptions);
-            if (data is null) return false;
+            Converters = { new JsonStringEnumConverter() }
+        };
 
-            _shoes.Clear();
-            _shoes.AddRange(data.Shoes);
-            _runs.Clear();
-            _runs.AddRange(data.Runs);
-            return true;
-        }
-        catch (JsonException ex)
-        {
-            Console.WriteLine($"Savefile seems corrupted ({ex.Message}). Starting again with empty data.");
-            return false;
-        }
+        var json = await File.ReadAllTextAsync(jsonPath);
+        var data = JsonSerializer.Deserialize<TrackerData>(json, options);
+        if (data is null) return 0;
+
+        _context.Shoes.AddRange(data.Shoes);
+        _context.Runs.AddRange(data.Runs);
+        await _context.SaveChangesAsync();
+
+        return data.Shoes.Count + data.Runs.Count;
     }
 }

@@ -46,7 +46,7 @@ bool running = true;
 while (running)
 {
     //main loop of the basic console interface
-    //keeps going until 'running' becomes false
+    //keeps going until 'running' turns false
     Console.WriteLine();
     Console.WriteLine("=== Shoe Tracker ===");
     Console.WriteLine();
@@ -93,7 +93,7 @@ while (running)
             break;
         case "0":
             tracker.SaveToFile(dataFilePath);
-            running = false; //terminates the loop
+            running = false; //kills the loop
             break;
         default:
             Console.WriteLine("Invalid choice.");
@@ -296,8 +296,6 @@ static void EditRunInteractive(TrackerService tracker)
     }
 
     //Order runs by date (newest on top)
-    //use this list to resolve index chosen by the user as well
-    //otherwise they wouldn't match
     var sortedRuns = tracker.Runs.OrderByDescending(r => r.Date).ToList();
 
     //Summary of ALL runs (unfiltered by shoe) with progressive index and
