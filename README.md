@@ -47,11 +47,11 @@ Upon first launch, `dotnet run` automatically applies the schema to the SQLite d
 At launch, the menu has the following options:
 
 1. **Shoes List** > list of registered shoes, with mileage and a warning if one has exceeded the recommended threshold
-2. **Runs List** > read-only list of all recorded runs, sorted from most recent
-3. **Register Run** > record a new run (shoe, distance, date, training type)
-4. **Add New Shoes** > adds a new pair of shoes to the rotation
-5. **Km/Month** > aggregate monthly mileage for a specific pair of shoes
-6. **Shoes To Retire** > list of shoes that have exceeded the recommended mileage
+2. **Add New Shoes** > adds a new pair of shoes to the rotation
+3. **Km/Month** > aggregate monthly mileage for a specific pair of shoes
+4. **Shoes To Retire** > list of shoes that have exceeded the recommended mileage
+5. **Runs List** > read-only list of all recorded runs, sorted from most recent
+6. **Register Run** > record a new run (shoe, distance, date, training type)
 7. **Edit Run** > edit a previously recorded run (shoe, distance, date or type), with automatic recalculation of the mileage of the shoes involved
 8. **Exit**
 
