@@ -1,4 +1,4 @@
-# Shoe Tracker
+# ShoeTracker
 
 C# console app for tracking mileage of running shoes across multiple pairs and knowing when to replace them. Started as a learning project for switching from interpreted languages ​​(JS, Python) to C# and .NET ecosystem.
 
@@ -26,7 +26,7 @@ dotnet ef migrations add InitialCreate
 dotnet run
 ```
 
-Upon first launch, `dotnet run` automatically applies the schema to the SQLite database (creating `shoetracker.db`) and, if it finds an old `shoetracker-data.json` (Level 2, pre-EF Core save), imports the one-time run history from there.
+Upon first launch, `dotnet run` automatically applies the schema to the SQLite database (creating `shoetracker.db`) and, if it finds an old `shoetracker-data.json` (Level 2, pre-EF Core save, see below), imports the one-time run history from there.
 
 ## Project structure
 
@@ -61,3 +61,8 @@ At launch, the menu has the following options:
 - **Level 2** — persistence on JSON file (`System.Text.Json`)
 - **Level 2+** — migration to **SQLite + Entity Framework Core** (current state): change tracking, query to SQL, versioned migrations
 - **Level 3** (next step) — exposing logic as **ASP.NET Core Web API** REST
+
+## Note on git
+
+- `Migrations/` → **to commit** (source code, describes the schema)
+- `*.db`, `bin/`, `obj/` → **to exclude** (runtime-generated data)
