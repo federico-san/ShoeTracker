@@ -1,45 +1,53 @@
 using System.Globalization;
+using Microsoft.EntityFrameworkCore;
+using ShoeTracker.Data;
 using ShoeTracker.Models;
 using ShoeTracker.Services;
 
 /// <summary>
-/// TOP-LEVEL STATEMENTS
-/// Unlike classic C# which requires a Program class and a 'static void Main()' method,
-/// the compiler implicitly places all this code into a global entry point.
-/// Great for scripts and CLIs.
+/// "await using": Asynchronously dispose of the context at the end of the program (DbContext implements IAsyncDisposable).
+/// Using "await" here at the top of the top-level statements is what causes the compiler to generate an asynchronous Main for the entire file,
+/// without having to write it explicitly.
 /// </summary>
+await using var context = new ShoeTrackerContext();
 
-var tracker = new TrackerService();
 
 /// <summary>
-/// AppContext.BaseDirectory ensures the file path is always relative to the binary executable and not the current working directory.
-/// In other words, the path is always the same whether doing 'dotnet run' from the main directory or launch the exe from bin/Debug/net8.0
+/// Automatically applies migrations that haven't yet been applied to the database.
+/// Handy for a learning project; in a real-world production app, this step is often handled separately
+/// (e.g., by a deployment pipeline) rather than at every application startup.
 /// </summary>
-var dataFilePath = Path.Combine(AppContext.BaseDirectory, "shoetracker-data.json");
+await context.Database.MigrateAsync();
 
-bool loaded = tracker.LoadFromFile(dataFilePath);
+var tracker = new TrackerService(context);
 
-if (!loaded)
+//One-time data migration: if the db is empty...
+if (!await tracker.HasAnyShoesAsync())
 {
-    //initial seed with current shoe rotation to avoid an empty application state
-    var hyperion3 = tracker.AddShoe("Brooks", "Hyperion 3", dropMm: 8, lifespan: 500);
-    var glizzymax2 = tracker.AddShoe("Brooks", "Glycerin Max 2", dropMm: 6, lifespan: 700);
-    var skyflow = tracker.AddShoe("HOKA", "Skyflow", dropMm: 5, lifespan: 600);
+    var legacyJsonPath = Path.Combine(AppContext.BaseDirectory, "shoetracker-data.json");
 
-    //some absolutely real runs
-    tracker.LogRun(glizzymax2.Id, 7.29, RunType.Easy, new DateOnly(2026, 07, 08));
-    tracker.LogRun(hyperion3.Id, 5.64, RunType.Tempo, new DateOnly(2026, 06, 06));
-    tracker.LogRun(glizzymax2.Id, 10.6, RunType.LongRun, new DateOnly(2026, 06, 14));
-    tracker.LogRun(hyperion3.Id, 7.64, RunType.Easy, new DateOnly(2026, 06, 12));
-    tracker.LogRun(skyflow.Id, 8.12, RunType.Recovery, new DateOnly(2026, 04, 12));
-    tracker.LogRun(skyflow.Id, 7.47, RunType.Easy, new DateOnly(2026, 04, 09));
-
-    tracker.SaveToFile(dataFilePath);
-}
-else
-{
-    Console.WriteLine($"Loaded data from {dataFilePath}");
-}
+    if (File.Exists(legacyJsonPath))
+    {
+        //...but the old json file (from Level 2) is still there, import data from there.
+        var imported = await tracker.ImportFromJsonAsync(legacyJsonPath);
+        Console.WriteLine($"Imported {imported} elements from the old JSON file (Level 2).");
+    }
+    else
+    {
+        //...what if the JSON isn't available? Populate the db with some dummy data as always.
+        var skyflow = await tracker.AddShoeAsync("HOKA", "Skyflow", dropMm: 5, lifespan: 600);
+        var glizzymax2 = await tracker.AddShoeAsync("Brooks", "Glycerin Max 2", dropMm: 6, lifespan: 700);
+        var hyperion3 = await tracker.AddShoeAsync("Brooks", "Hyperion 3", dropMm: 8, lifespan: 500);
+    
+        //some absolutely real runs
+        await tracker.LogRunAsync(glizzymax2.Id, 7.29, RunType.Easy, new DateOnly(2026, 07, 08));
+        await tracker.LogRunAsync(hyperion3.Id, 5.64, RunType.Tempo, new DateOnly(2026, 06, 06));
+        await tracker.LogRunAsync(glizzymax2.Id, 10.6, RunType.LongRun, new DateOnly(2026, 06, 14));
+        await tracker.LogRunAsync(hyperion3.Id, 7.64, RunType.Easy, new DateOnly(2026, 06, 12));
+        await tracker.LogRunAsync(skyflow.Id, 8.12, RunType.Recovery, new DateOnly(2026, 04, 12));
+        await tracker.LogRunAsync(skyflow.Id, 7.47, RunType.Easy, new DateOnly(2026, 04, 09));
+    }
+}   
 
 bool running = true;
 
@@ -57,7 +65,7 @@ while (running)
     Console.WriteLine("5. Runs List");
     Console.WriteLine("6. Register Run");
     Console.WriteLine("7. Edit Run");
-    Console.WriteLine("0. Exit");
+    Console.WriteLine("8. Exit");
     Console.WriteLine();
     Console.WriteLine("====================");
     Console.WriteLine();
@@ -68,31 +76,27 @@ while (running)
     switch (choice)
     {
         case "1":
-            ListShoes(tracker);
+            await ListShoes(tracker);
             break;
         case "2":
-            AddShoeInteractive(tracker);
-            tracker.SaveToFile(dataFilePath);
+            await AddShoeInteractive(tracker);
             break;
         case "3":
-            ShowKmMonth(tracker);
+            await ShowKmMonth(tracker);
             break;
         case "4":
-            ShowShoesToRetire(tracker);
+            await ShowShoesToRetire(tracker);
             break;
         case "5":
-            ListRuns(tracker);
+            await ListRuns(tracker);
             break;
         case "6":
-            LogRunInteractive(tracker);
-            tracker.SaveToFile(dataFilePath);
+            await LogRunInteractive(tracker);
             break;
         case "7":
-            EditRunInteractive(tracker);
-            tracker.SaveToFile(dataFilePath);
+            await EditRunInteractive(tracker);
             break;
-        case "0":
-            tracker.SaveToFile(dataFilePath);
+        case "8":
             running = false; //kills the loop
             break;
         default:
@@ -104,6 +108,7 @@ while (running)
 // LOCAL FUNCTIONS
 //These functions are only visible within Program.cs / Main method.
 //They allow to split a very long file into reusable logical blocks.
+//Now "static async Task" instead of "static void". Rest of the pattern is same as before.
 
 /// <summary>
 /// Culture-robust KM parsing.
@@ -117,7 +122,7 @@ static bool TryParseDistance(string? input, out double distance)
     return double.TryParse(normalized, NumberStyles.Float, CultureInfo.InvariantCulture, out distance);
 }
 
-//Explicit date parsing in the dd/mm/yyyy format, independent from system culture similar to above.
+//Explicit date parsing in the dd/mm/yyyy format, independent from system culture; flexible on some formatting details.
 static bool TryParseDate(string? input, out DateOnly date)
 {
     string[] formats = { "d/M/yyyy", "d/M/yy" };
@@ -129,19 +134,19 @@ static bool TryParseDate(string? input, out DateOnly date)
         out date);
 }
 
-static void ListShoes(TrackerService tracker)
+static void PrintShoes(List<Shoe> shoes)
 {
     Console.WriteLine();
-    if (tracker.Shoes.Count == 0)
+    if (shoes.Count == 0)
     {
         Console.WriteLine("No shoes registered.");
         return;
     }
 
     //Console.WriteLine with index for numeric lists
-    for (int i=0; i < tracker.Shoes.Count; i++)
+    for (int i=0; i < shoes.Count; i++)
     {
-        var shoe = tracker.Shoes[i];
+        var shoe = shoes[i];
         //Ternary Operator: if Shoereplace == True assigns the string, else leave empty.
         var flag = shoe.ShoeReplace ? "!!! NEEDS REPLACEMENT !!!" : "";
         Console.WriteLine($"{i + 1}. {shoe}{flag}");
@@ -149,7 +154,13 @@ static void ListShoes(TrackerService tracker)
     Console.WriteLine();
 }
 
-static void AddShoeInteractive(TrackerService tracker)
+static async Task ListShoes(TrackerService tracker)
+{
+    var shoes = await tracker.GetShoesAsync();
+    PrintShoes(shoes);
+}
+
+static async Task AddShoeInteractive(TrackerService tracker)
 {
     Console.Write("Brand: ");
     var brand = Console.ReadLine() ?? "Unknown";
@@ -166,25 +177,26 @@ static void AddShoeInteractive(TrackerService tracker)
     var lifespanInput = Console.ReadLine();
     int lifespan = string.IsNullOrWhiteSpace(lifespanInput) ? 700 : int.Parse(lifespanInput); //IsNullOrWhiteSpace method checks for null, empty string, or a string consisting only of spaces
 
-    var shoe = tracker.AddShoe(brand, model, drop, lifespan);
+    var shoe = await tracker.AddShoeAsync(brand, model, drop, lifespan);
     Console.WriteLine($"Added: {shoe}");
     Console.WriteLine();
 }
 
-static void ShowKmMonth(TrackerService tracker)
+static async Task ShowKmMonth(TrackerService tracker)
 {
-    ListShoes(tracker);
-    if (tracker.Shoes.Count == 0) return;
+    var shoes = await tracker.GetShoesAsync();
+    PrintShoes(shoes);
+    if (shoes.Count == 0) return;
 
     Console.Write("Shoes number: ");
-    if (!int.TryParse(Console.ReadLine(), out int index) || index < 1 || index > tracker.Shoes.Count)
+    if (!int.TryParse(Console.ReadLine(), out int index) || index < 1 || index > shoes.Count)
     {
         Console.WriteLine("Invalid number.");
         return;
     }
 
-    var shoe = tracker.Shoes[index - 1];
-    var byMonth = tracker.GetKmByMonth(shoe.Id);
+    var shoe = shoes[index - 1];
+    var byMonth = await tracker.GetKmByMonthAsync(shoe.Id);
 
     Console.WriteLine();
     Console.WriteLine($"Km per month -- {shoe.Brand} {shoe.Model}");
@@ -195,9 +207,9 @@ static void ShowKmMonth(TrackerService tracker)
     Console.WriteLine();
 }
 
-static void ShowShoesToRetire(TrackerService tracker)
+static async Task ShowShoesToRetire(TrackerService tracker)
 {
-    var toReplace = tracker.ShowShoesToRetire();
+    var toReplace = await tracker.ShowShoesToRetireAsync();
     Console.WriteLine();
     if (toReplace.Count == 0)
     {
@@ -213,43 +225,46 @@ static void ShowShoesToRetire(TrackerService tracker)
     Console.WriteLine();
 }
 
-static void ListRuns(TrackerService tracker)
+static async Task ListRuns(TrackerService tracker)
 {
-    if (tracker.Runs.Count == 0)
+    var runs = await tracker.GetRunsAsync();
+
+    if (runs.Count == 0)
     {
         Console.WriteLine("No run registered.");
         return;
     }
 
-    //same sorting of EditRun
-    var sortedRuns = tracker.Runs.OrderByDescending(r => r.Date).ToList();
+    var shoes = await tracker.GetShoesAsync();
+    var sortedRuns = runs.OrderByDescending(r => r.Date).ToList();
 
     Console.WriteLine();
     Console.WriteLine("=== Registered Runs ===");
     Console.WriteLine();
     foreach (var r in sortedRuns)
     {
-        var shoe = tracker.Shoes.FirstOrDefault(s => s.Id == r.ShoeId);
-        var shoeLabel = shoe is not null ? $"{shoe.Brand} {shoe.Model}": "unknown shoe";
+        var shoe = shoes.FirstOrDefault(s => s.Id == r.ShoeId);
+        var shoeLabel = shoe is not null ? $"{shoe.Brand} {shoe.Model}": "unknown shoe.";
         Console.WriteLine($"{r} ({shoeLabel})");
     }
 
     Console.WriteLine();
 }
 
-static void LogRunInteractive(TrackerService tracker)
+static async Task LogRunInteractive(TrackerService tracker)
 {
-    ListShoes(tracker);
-    if (tracker.Shoes.Count == 0) return;
+    var shoes = await tracker.GetShoesAsync();
+    PrintShoes(shoes);
+    if (shoes.Count == 0) return;
 
     Console.Write("Shoes number: ");
-    if (!int.TryParse(Console.ReadLine(), out int index) || index < 1 || index > tracker.Shoes.Count)
+    if (!int.TryParse(Console.ReadLine(), out int index) || index < 1 || index > shoes.Count)
     {
         Console.Write("invalid number.");
         return;
     }
 
-    var shoe = tracker.Shoes[index - 1];
+    var shoe = shoes[index - 1];
 
     Console.Write("Distance (km, e.g. 8.14 or 8,14): ");
     if (!TryParseDistance(Console.ReadLine(), out double distance))
@@ -271,7 +286,7 @@ static void LogRunInteractive(TrackerService tracker)
         runDate = DateOnly.FromDateTime(DateTime.Now);
     }
 
-    Console.Write("Run type (Easy/Recovery/LongRun/Tempo/Intervals/Race}): ");
+    Console.Write("Run type (Easy/Recovery/LongRun/Tempo/Intervals/Race): ");
     var typeInput = Console.ReadLine();
 
     //Enum.TryParse attempts to convert the string into Enum.
@@ -282,31 +297,34 @@ static void LogRunInteractive(TrackerService tracker)
         type = RunType.Easy;
     }
 
-    var run = tracker.LogRun(shoe.Id, distance, type, runDate);
+    var run = await tracker.LogRunAsync(shoe.Id, distance, type, runDate);
     Console.WriteLine(run is not null ? $"Registered run: {run}" : "Error while registering.");
     Console.WriteLine();
 }
 
-static void EditRunInteractive(TrackerService tracker)
+static async Task EditRunInteractive(TrackerService tracker)
 {
-    if (tracker.Runs.Count == 0)
+    var runs = await tracker.GetRunsAsync();
+    if (runs.Count == 0)
     {
         Console.WriteLine("No run registered.");
         return;
     }
 
-    //Order runs by date (newest on top)
-    var sortedRuns = tracker.Runs.OrderByDescending(r => r.Date).ToList();
+    var shoes = await tracker.GetShoesAsync();
+
+    //Sorting for visualization, also used to resolve the user-selected index (shown and selected must match).
+    var sortedRuns = runs.OrderByDescending(r => r.Date).ToList();
 
     //Summary of ALL runs (unfiltered by shoe) with progressive index and
     //shoe name for easy spotting
     Console.WriteLine();
     Console.WriteLine("=== Registered Runs ===");
-    for (int i=0; i < tracker.Runs.Count; i++)
+    for (int i=0; i < sortedRuns.Count; i++)
     {
         var r = sortedRuns[i];
-        var shoe = tracker.Shoes.FirstOrDefault(s => s.Id == r.ShoeId);
-        var shoeLabel = shoe is not null ? $"{shoe.Brand} {shoe.Model}" : "Unknown Shoe.";
+        var shoe = shoes.FirstOrDefault(s => s.Id == r.ShoeId);
+        var shoeLabel = shoe is not null ? $"{shoe.Brand} {shoe.Model}" : "unknown shoe.";
         Console.WriteLine($"{i + 1}. {r} ({shoeLabel})");
     }
 
@@ -323,14 +341,14 @@ static void EditRunInteractive(TrackerService tracker)
 
     // === Shoe ===
     Guid? newShoeId = null;
-    ListShoes(tracker);
+    PrintShoes(shoes);
     Console.Write("New shoe number: ");
     var shoeInput = Console.ReadLine();
     if (!string.IsNullOrWhiteSpace(shoeInput))
     {
-        if (int.TryParse(shoeInput, out int shoeIndex) && shoeIndex >= 1 && shoeIndex <= tracker.Shoes.Count)
+        if (int.TryParse(shoeInput, out int shoeIndex) && shoeIndex >= 1 && shoeIndex <= shoes.Count)
         {
-            newShoeId = tracker.Shoes[shoeIndex - 1].Id;
+            newShoeId = shoes[shoeIndex - 1].Id;
         }
         else
         {
@@ -340,7 +358,6 @@ static void EditRunInteractive(TrackerService tracker)
 
     // === Distance ===
     double? newDistance = null;
-    ListShoes(tracker);
     Console.Write($"New distance (km, current {runToEdit.DistanceKm:F2}): ");
     var distanceInput = Console.ReadLine();
     if (!string.IsNullOrWhiteSpace(distanceInput))
@@ -387,6 +404,6 @@ static void EditRunInteractive(TrackerService tracker)
         }
     }
 
-    bool updated = tracker.EditRun(runToEdit.Id, newShoeId, newDistance, newType, newDate);
+    bool updated = await tracker.EditRunAsync(runToEdit.Id, newShoeId, newDistance, newType, newDate);
     Console.WriteLine(updated ? "Updated run." : "Error while updating.");
 }
