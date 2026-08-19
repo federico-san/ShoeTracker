@@ -31,7 +31,7 @@ Upon first launch, `dotnet run` automatically applies the schema to the SQLite d
 ## Project structure
 
 | File | Purpose |
-|---|---|
+|---|---|  
 | `Program.cs` | Entry point. Interactive console menu (`while` + `switch` loop) and local functions that handle every user action (e.g. adding shoes, recording/editing runs). Contains robust parsing of decimal numbers and dates from user input, independent of system culture. |
 | `ShoeTracker.csproj` | Project file: target framework (`net8.0`), compiler settings (nullable reference types enabled), and EF Core NuGet dependencies. |
 | `Models/Shoe.cs` | **Shoe** entity: brand, model, drop, mileage, recommended replacement threshold. Includes calculated properties (`RemainingKm`, `ShoeReplace`, marked `[NotMapped]`, not saved to DB) and the `Runs` navigation property to linked runs. |
@@ -61,8 +61,3 @@ At launch, the menu has the following options:
 - **Level 2** — persistence on JSON file (`System.Text.Json`)
 - **Level 2+** — migration to **SQLite + Entity Framework Core** (current state): change tracking, query to SQL, versioned migrations
 - **Level 3** (next step) — exposing logic as **ASP.NET Core Web API** REST
-
-## Note on git
-
-- `Migrations/` → **to commit** (source code, describes the schema)
-- `*.db`, `bin/`, `obj/` → **to exclude** (runtime-generated data)
