@@ -86,7 +86,7 @@ public class TrackerService
     //ShoeReplace doesn't have one, so using it inside a Where() against the DbSet would fail at runtime.
     //Practical example of "not all C# can be translated to SQL".
     public async Task<List<Shoe>> ShowShoesToRetireAsync() =>
-        await _context.Shoes.Where(s => s.ShoeReplace).ToListAsync();
+        await _context.Shoes.Where(s => s.TotalKm >= s.LifespanKm).ToListAsync();
 
     public async Task<Dictionary<string, double>> GetKmByMonthAsync(Guid shoeId)
     {
