@@ -209,7 +209,7 @@ static async Task DeleteShoe(TrackerService tracker)
 
     Console.Write("Confirm? (Y/n): ");
     var confirm = Console.ReadLine();
-    if (!string.Equals(confirm?.Trim(), "s", StringComparison.OrdinalIgnoreCase))
+    if (!string.Equals(confirm?.Trim(), "Y", StringComparison.OrdinalIgnoreCase))
     {
         Console.WriteLine("Deletion aborted.");
         return;
