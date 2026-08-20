@@ -21,34 +21,6 @@ await context.Database.MigrateAsync();
 
 var tracker = new TrackerService(context);
 
-//One-time data migration: if the db is empty...
-if (!await tracker.HasAnyShoesAsync())
-{
-    var legacyJsonPath = Path.Combine(AppContext.BaseDirectory, "shoetracker-data.json");
-
-    if (File.Exists(legacyJsonPath))
-    {
-        //...but the old json file (from Level 2) is still there, import data from there.
-        var imported = await tracker.ImportFromJsonAsync(legacyJsonPath);
-        Console.WriteLine($"Imported {imported} elements from the old JSON file (Level 2).");
-    }
-    else
-    {
-        //...what if the JSON isn't available? Populate the db with some dummy data as always.
-        var skyflow = await tracker.AddShoeAsync("HOKA", "Skyflow", dropMm: 5, lifespan: 600);
-        var glizzymax2 = await tracker.AddShoeAsync("Brooks", "Glycerin Max 2", dropMm: 6, lifespan: 700);
-        var hyperion3 = await tracker.AddShoeAsync("Brooks", "Hyperion 3", dropMm: 8, lifespan: 500);
-    
-        //some absolutely real runs
-        await tracker.LogRunAsync(glizzymax2.Id, 7.29, RunType.Easy, new DateOnly(2026, 07, 08));
-        await tracker.LogRunAsync(hyperion3.Id, 5.64, RunType.Tempo, new DateOnly(2026, 06, 06));
-        await tracker.LogRunAsync(glizzymax2.Id, 10.6, RunType.LongRun, new DateOnly(2026, 06, 14));
-        await tracker.LogRunAsync(hyperion3.Id, 7.64, RunType.Easy, new DateOnly(2026, 06, 12));
-        await tracker.LogRunAsync(skyflow.Id, 8.12, RunType.Recovery, new DateOnly(2026, 04, 12));
-        await tracker.LogRunAsync(skyflow.Id, 7.47, RunType.Easy, new DateOnly(2026, 04, 09));
-    }
-}   
-
 bool running = true;
 
 while (running)
@@ -58,13 +30,13 @@ while (running)
     Console.WriteLine();
     Console.WriteLine("=== Shoe Tracker ===");
     Console.WriteLine();
-    Console.WriteLine("1. Shoes List");
-    Console.WriteLine("2. Add New Shoes");
+    Console.WriteLine("1. Shoes list");
+    Console.WriteLine("2. Add/Delete shoes");
     Console.WriteLine("3. Km/Month (for each pair)");
-    Console.WriteLine("4. Shoes To Retire");
-    Console.WriteLine("5. Runs List");
-    Console.WriteLine("6. Register Run");
-    Console.WriteLine("7. Edit Run");
+    Console.WriteLine("4. Shoes to retire");
+    Console.WriteLine("5. Runs list");
+    Console.WriteLine("6. Register run");
+    Console.WriteLine("7. Edit run");
     Console.WriteLine("8. Exit");
     Console.WriteLine();
     Console.WriteLine("====================");
@@ -162,6 +134,28 @@ static async Task ListShoes(TrackerService tracker)
 
 static async Task AddShoeInteractive(TrackerService tracker)
 {
+    Console.WriteLine();
+    Console.WriteLine("1. Add shoe");
+    Console.WriteLine("2. Delete shoe");
+    Console.WriteLine("Choice: ");
+    var action = Console.ReadLine();
+
+    switch(action)
+    {
+        case "1":
+            await AddShoe(tracker);
+            break;
+        case "2":
+            await DeleteShoe(tracker);
+            break;
+        default:
+            Console.WriteLine("Invalid choice.");
+            break;
+    }
+}
+
+static async Task AddShoe(TrackerService tracker)
+{
     Console.Write("Brand: ");
     var brand = Console.ReadLine() ?? "Unknown";
 
@@ -180,6 +174,49 @@ static async Task AddShoeInteractive(TrackerService tracker)
     var shoe = await tracker.AddShoeAsync(brand, model, drop, lifespan);
     Console.WriteLine($"Added: {shoe}");
     Console.WriteLine();
+}
+
+static async Task DeleteShoe(TrackerService tracker)
+{
+    var shoes = await tracker.GetShoesAsync();
+    PrintShoes(shoes);
+    if (shoes.Count == 0) return;
+
+    Console.Write("Number of shoe to delete: ");
+    if (!int.TryParse(Console.ReadLine(), out int index) || index < 1 || index > shoes.Count)
+    {
+        Console.WriteLine("Invalid number.");
+        return;
+    }
+
+    var shoe = shoes[index -1];
+
+    //Check how many runs are connected FIRST, so the user knows exactly what he is about to lose.
+    //The database-level cascade delete doesn't ask for confirmation by itself, the UI does that.
+    var runCount = await tracker.CountRunsAsync(shoe.Id);
+
+    Console.WriteLine();
+    if (runCount > 0)
+    {
+        var runWord = runCount == 1 ? "run" : "runs";
+        Console.WriteLine($"WARNING: {shoe} has {runCount} {runWord} registered.");
+        Console.WriteLine("Deleting the shoe will also delete ALL runs linked to it. This cannot be undone.");
+    }
+    else
+    {
+        Console.WriteLine($"You're about to delete: {shoe}");
+    }
+
+    Console.Write("Confirm? (Y/n): ");
+    var confirm = Console.ReadLine();
+    if (!string.Equals(confirm?.Trim(), "s", StringComparison.OrdinalIgnoreCase))
+    {
+        Console.WriteLine("Deletion aborted.");
+        return;
+    }
+
+    bool deleted = await tracker.DeleteShoeAsync(shoe.Id);
+    Console.WriteLine(deleted ? "Shoe deleted." : "Error during deletion.");
 }
 
 static async Task ShowKmMonth(TrackerService tracker)
