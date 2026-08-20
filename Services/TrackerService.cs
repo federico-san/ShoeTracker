@@ -111,6 +111,25 @@ public class TrackerService
             .OrderByDescending(r => r.Date)
             .ToListAsync();
 
+    public async Task<int> CountRunsAsync(Guid shoeId) =>
+        await _context.Runs.CountAsync(r => r.ShoeId == shoeId);
+
+    /// <summary>
+    /// Delete a shoe. Run.ShoeId is a "required" (non-nullable) foreign key: by convention, EF Core configures this type of relationship with DeleteBehavior.Cascade,
+    /// and translates it into an "ON DELETE CASCADE" constraint already present in the InitialCreate migration.
+    /// Meaning, deleting the shoe automatically deletes ALL related runs at the database level. There's no need to explicitly load or delete them in this method.
+    /// Because it's a destructive and silent operation from database perspective, explicit user confirmation must be handled in the UI (see DeleteShoe in Program.cs), not here.
+    /// </summary>
+    public async Task<bool> DeleteShoeAsync(Guid shoeId)
+    {
+        var shoe = await _context.Shoes.FirstOrDefaultAsync(s => s.Id == shoeId);
+        if (shoe is null) return false;
+
+        _context.Shoes.Remove(shoe);
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
     /// <summary>
     /// Edits an existing run. Every parameter is Nullable: if passed
     /// (non-null) is applied, else the field remains the same.
