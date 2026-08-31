@@ -26,7 +26,7 @@ dotnet ef migrations add InitialCreate
 dotnet run
 ```
 
-Upon first launch, `dotnet run` automatically applies the schema to the SQLite database (creating `shoetracker.db`) and, if it finds an old `shoetracker-data.json` (Level 2, pre-EF Core save, see below), imports the one-time run history from there.
+Upon first launch, `dotnet run` automatically applies the schema to the SQLite database (creating `shoetracker.db`) and, if it finds an old `shoetracker-data.json` (Level 2, pre-EF Core save, see "project steps" below), imports the one-time run history from there.
 
 ## Project structure
 
@@ -48,15 +48,13 @@ At launch, the menu has the following options:
 1. **Shoes List** > list of registered shoes, with mileage and a warning if one has exceeded the recommended threshold
 2. **Add/Delete Shoes** > adds/removes a pair of shoes to the list (with explicit confirm if it has linked runs - deleting also deletes all the runs history of that shoe)
 3. **Km/Month** > aggregate monthly mileage for a specific pair of shoes
-4. **Shoes To Retire** > list of shoes that have exceeded the recommended mileage
-5. **Runs List** > read-only list of all recorded runs, sorted from most recent
-6. **Register Run** > record a new run (shoe, distance, date, training type)
-7. **Edit Run** > edit a previously recorded run (shoe, distance, date or type), with automatic recalculation of the mileage of the shoes involved
-8. **Exit**
+4. **Runs List** > read-only list of all recorded runs, sorted from most recent
+5. **Register/Edit Run** > register a new run (shoe, distance, date, training type) or edit a previously recorded one with automatic recalculation of the mileage of the pair involved
+6. **Exit**
 
 ## Project steps
 
 - **Level 1** — Basic console app: classes, LINQ, robust input parsing
 - **Level 2** — persistence on JSON file (`System.Text.Json`)
 - **Level 2+** — migration to **SQLite + EF Core** (current state): change tracking, query to SQL, versioned migrations
-- **Level 3** (next step) — exposing logic as **ASP.NET Core Web API** REST
+- **Level 3** (next step) — implementing logic as **ASP.NET Core Web API** REST

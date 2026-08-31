@@ -5,12 +5,11 @@ using ShoeTracker.Models;
 using ShoeTracker.Services;
 
 /// <summary>
-/// "await using": Asynchronously dispose of the context at the end of the program (DbContext implements IAsyncDisposable).
-/// Using "await" here at the top of the top-level statements is what causes the compiler to generate an asynchronous Main for the entire file,
+/// "await using": asynchronously dispose of the context at the end of the program (DbContext implements IAsyncDisposable).
+/// Using "await" here at the top is what causes the compiler to generate an asynchronous Main for the entire file,
 /// without having to write it explicitly.
 /// </summary>
 await using var context = new ShoeTrackerContext();
-
 
 /// <summary>
 /// Automatically applies migrations that haven't yet been applied to the database.
@@ -33,11 +32,9 @@ while (running)
     Console.WriteLine("1. Shoes list");
     Console.WriteLine("2. Add/Delete shoes");
     Console.WriteLine("3. Km/Month (for each pair)");
-    Console.WriteLine("4. Shoes to retire");
-    Console.WriteLine("5. Runs list");
-    Console.WriteLine("6. Register run");
-    Console.WriteLine("7. Edit run");
-    Console.WriteLine("8. Exit");
+    Console.WriteLine("4. Runs list");
+    Console.WriteLine("5. Register/Edit run");
+    Console.WriteLine("6. Exit");
     Console.WriteLine();
     Console.WriteLine("====================");
     Console.WriteLine();
@@ -57,18 +54,12 @@ while (running)
             await ShowKmMonth(tracker);
             break;
         case "4":
-            await ShowShoesToRetire(tracker);
-            break;
-        case "5":
             await ListRuns(tracker);
             break;
+        case "5":
+            await RegisterEditRunInteractive(tracker);
+            break;
         case "6":
-            await LogRunInteractive(tracker);
-            break;
-        case "7":
-            await EditRunInteractive(tracker);
-            break;
-        case "8":
             running = false; //kills the loop
             break;
         default:
@@ -244,24 +235,6 @@ static async Task ShowKmMonth(TrackerService tracker)
     Console.WriteLine();
 }
 
-static async Task ShowShoesToRetire(TrackerService tracker)
-{
-    var toReplace = await tracker.ShowShoesToRetireAsync();
-    Console.WriteLine();
-    if (toReplace.Count == 0)
-    {
-        Console.WriteLine("No shoes have reached their max mileage yet.");
-        Console.WriteLine();
-        return;
-    }
-
-    foreach (var shoe in toReplace)
-    {
-        Console.WriteLine($"!!! WARNING {shoe} !!!");
-    }
-    Console.WriteLine();
-}
-
 static async Task ListRuns(TrackerService tracker)
 {
     var runs = await tracker.GetRunsAsync();
@@ -286,6 +259,28 @@ static async Task ListRuns(TrackerService tracker)
     }
 
     Console.WriteLine();
+}
+
+static async Task RegisterEditRunInteractive(TrackerService tracker)
+{
+    Console.WriteLine();
+    Console.WriteLine("1. Register Run");
+    Console.WriteLine("2. Edit Run");
+    var action = Console.ReadLine();
+
+    switch (action)
+    {
+        case "1":
+            await LogRunInteractive(tracker);
+            break;
+        case "2":
+            await EditRunInteractive(tracker);
+            break;
+        case "3":
+            Console.WriteLine("Invalid Choice");
+            break;
+    }
+
 }
 
 static async Task LogRunInteractive(TrackerService tracker)
