@@ -8,7 +8,7 @@ C# console app for tracking mileage of running shoes across multiple pairs and k
 - **EF Core 10** (SQLite provider) - data persistence
 - Pure console app (no web interface, see "next step" at the bottom)
 
-## Prerequisites
+## Requirements
 
 - [.NET SDK](https://dotnet.microsoft.com/download)
 - Tool `dotnet-ef`: `dotnet tool install --global dotnet-ef` (one time per machine)
